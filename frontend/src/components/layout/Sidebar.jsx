@@ -34,20 +34,17 @@ export const Sidebar = ({ activeTab, onTabChange }) => {
     <aside className="sidebar">
       {/* Brand Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem' }}>
-        <div 
+        <img 
+          src="/logo.png" 
+          alt="SmartImage Logo" 
           style={{ 
             width: '40px', 
             height: '40px', 
             borderRadius: 'var(--radius-md)', 
-            background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--glow-shadow)',
-          }}
-        >
-          <ImageIcon size={22} color="white" />
-        </div>
+            boxShadow: 'var(--glow-shadow)', 
+            objectFit: 'cover' 
+          }} 
+        />
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em', margin: 0 }}>
             SmartImage

@@ -90,9 +90,17 @@ function App() {
 
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', boxShadow: 'var(--glow-shadow)' }}>
-              <ImageIcon size={24} color="white" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="SmartImage Logo" 
+              style={{ 
+                width: '48px', 
+                height: '48px', 
+                borderRadius: 'var(--radius-md)', 
+                boxShadow: 'var(--glow-shadow)', 
+                objectFit: 'cover' 
+              }} 
+            />
             <div style={{ textAlign: 'left' }}>
               <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', margin: 0, color: '#fff' }}>SmartImage</h1>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Serverless Image Vault</span>
