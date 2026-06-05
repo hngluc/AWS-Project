@@ -9,6 +9,7 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -209,15 +210,12 @@ export class ApiStack extends cdk.Stack {
       resources: ['*'], // Rekognition doesn't support resource-level policies
     }));
 
-    // Image Processor can invoke AI Analyzer asynchronously
-    this.aiAnalyzerFunction.grantInvoke(this.imageProcessorFunction);
-
-    // Update Image Processor's env with AI Analyzer function name
-    // (We couldn't set it earlier because the function didn't exist yet)
-    this.imageProcessorFunction.addEnvironment(
-      'AI_ANALYZER_FUNCTION_NAME',
-      this.aiAnalyzerFunction.functionName,
-    );
+    // Event Source: DynamoDB Streams (replaces direct invocation)
+    this.aiAnalyzerFunction.addEventSource(new lambdaEventSources.DynamoEventSource(imageTable, {
+      startingPosition: lambda.StartingPosition.TRIM_HORIZON,
+      batchSize: 10,
+      retryAttempts: 3,
+    }));
 
     // ─── API Gateway ────────────────────────────────────────────────
     // REST API with Cognito Authorizer

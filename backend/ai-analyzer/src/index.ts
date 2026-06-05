@@ -1,172 +1,173 @@
-import type { Context } from 'aws-lambda';
+import type { Context, DynamoDBStreamEvent } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import https from 'https';
 import { detectLabels } from './services/labeling';
 import { detectModeration } from './services/moderation';
 import { mapToAiTags, mapToModerationLabels, determineModerationStatus } from './mappers/tagMapper';
 
 /**
- * AI Analyzer Lambda — Asynchronous Rekognition Analysis
- * 
- * Invoked asynchronously by Image Processor Lambda.
- * 
- * Processing pipeline:
- * 1. Call Rekognition DetectLabels → get object/scene labels
- * 2. Call Rekognition DetectModerationLabels → check for unsafe content
- * 3. Map Rekognition responses to our schema format
- * 4. Determine moderation status (SAFE/FLAGGED)
- * 5. Update DynamoDB with AI tags and moderation results
- * 6. Write tag index items to GSI1 for search
- * 7. Update GSI2 for moderation queue
+ * AI Analyzer Lambda — DynamoDB Stream Event-Driven
  */
 
-// ─── Clients (connection reuse) ─────────────────────────────────
+// ─── Clients (connection reuse with Keep-Alive) ─────────────────
+const agent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+});
+
 const ddbClient = DynamoDBDocumentClient.from(
-  new DynamoDBClient({ region: process.env.AWS_REGION }),
+  new DynamoDBClient({
+    region: process.env.AWS_REGION,
+    requestHandler: new NodeHttpHandler({ httpsAgent: agent }),
+  }),
   { marshallOptions: { removeUndefinedValues: true } },
 );
 
 const IMAGE_TABLE = process.env.IMAGE_TABLE_NAME!;
+const RAW_BUCKET = process.env.RAW_BUCKET_NAME!;
 
-// ─── Event payload from Image Processor ─────────────────────────
-interface AnalyzerEvent {
-  bucket: string;
-  key: string;
-  imageId: string;
-  userId: string;
-  tableName: string;
-  pk: string;
-  sk: string;
-}
-
-export const handler = async (event: AnalyzerEvent, context: Context): Promise<void> => {
+export const handler = async (event: DynamoDBStreamEvent, context: Context): Promise<void> => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  console.info('AI Analyzer invoked', {
-    imageId: event.imageId,
-    bucket: event.bucket,
-    key: event.key,
+  console.info('AI Analyzer invoked via DynamoDB Stream', {
+    recordCount: event.Records.length,
     requestId: context.awsRequestId,
   });
 
-  try {
-    // Step 1: Detect labels (objects, scenes, concepts)
-    console.info('Calling Rekognition DetectLabels', { bucket: event.bucket, key: event.key });
-    const labelsResponse = await detectLabels(event.bucket, event.key);
-
-    // Step 2: Detect moderation labels (unsafe content)
-    console.info('Calling Rekognition DetectModerationLabels', { bucket: event.bucket, key: event.key });
-    const moderationResponse = await detectModeration(event.bucket, event.key);
-
-    // Step 3: Map responses to our schema
-    const aiTags = mapToAiTags(labelsResponse);
-    const moderationLabels = mapToModerationLabels(moderationResponse);
-    const moderationStatus = determineModerationStatus(moderationLabels);
-
-    console.info('AI Analysis complete', {
-      imageId: event.imageId,
-      tagCount: aiTags.length,
-      moderationLabelCount: moderationLabels.length,
-      moderationStatus,
-      topTags: aiTags.slice(0, 5).map(t => t.name),
-    });
-
-    // Step 4: Update main image record with AI results
-    await ddbClient.send(new UpdateCommand({
-      TableName: IMAGE_TABLE,
-      Key: { PK: event.pk, SK: event.sk },
-      UpdateExpression: `
-        SET #status = :status,
-            aiTags = :aiTags,
-            moderationLabels = :moderationLabels,
-            moderationStatus = :moderationStatus,
-            GSI2PK = :gsi2pk,
-            GSI2SK = :gsi2sk,
-            updatedAt = :now
-      `,
-      ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: {
-        ':status': 'COMPLETED',
-        ':aiTags': aiTags,
-        ':moderationLabels': moderationLabels,
-        ':moderationStatus': moderationStatus,
-        ':gsi2pk': `MOD#${moderationStatus}`,
-        ':gsi2sk': new Date().toISOString(),
-        ':now': new Date().toISOString(),
-      },
-    }));
-
-    // Step 5: Write tag index items for GSI1 search
-    // Create separate DynamoDB items for each tag to enable efficient GSI1 queries
-    // Only index the top tags (confidence > 70%) to avoid noise
-    const significantTags = aiTags.filter(tag => tag.confidence >= 70);
-
-    if (significantTags.length > 0) {
-      // BatchWrite supports max 25 items per request
-      const batches = chunkArray(significantTags, 25);
-
-      for (const batch of batches) {
-        await ddbClient.send(new BatchWriteCommand({
-          RequestItems: {
-            [IMAGE_TABLE]: batch.map(tag => ({
-              PutRequest: {
-                Item: {
-                  PK: `TAG#${tag.name}`, // Not a user item — tag index item
-                  SK: `IMG#${event.imageId}`,
-                  GSI1PK: `TAG#${tag.name}`,
-                  GSI1SK: `IMG#${event.imageId}`,
-                  imageId: event.imageId,
-                  userId: event.userId,
-                  confidence: tag.confidence,
-                  thumbnailKey: undefined, // Will be set separately if needed
-                  createdAt: new Date().toISOString(),
-                },
-              },
-            })),
-          },
-        }));
-      }
-
-      console.info('Tag index items written', {
-        imageId: event.imageId,
-        tagCount: significantTags.length,
-      });
+  for (const record of event.Records) {
+    if (record.eventName !== 'INSERT' && record.eventName !== 'MODIFY') {
+      continue;
     }
 
-    console.info('AI Analyzer completed successfully', {
-      imageId: event.imageId,
-      moderationStatus,
-    });
+    if (!record.dynamodb?.NewImage) continue;
 
-  } catch (error) {
-    console.error('AI Analyzer failed', {
-      imageId: event.imageId,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    // Unmarshall DynamoDB image to normal JS object
+    const newImage = unmarshall(record.dynamodb.NewImage as any);
 
-    // Update status to COMPLETED with error flag (don't block the pipeline)
-    // The image is still usable even if AI analysis fails
+    // Only process images that have just transitioned to PROCESSING status
+    if (newImage.status !== 'PROCESSING') {
+      continue;
+    }
+
+    // Skip if already analyzed (idempotency guard)
+    if (newImage.aiTags && newImage.moderationStatus) {
+      continue;
+    }
+
+    const { imageId, userId, originalKey, PK, SK } = newImage;
+    if (!imageId || !originalKey || !PK || !SK) {
+      console.warn('Missing required attributes in stream record', { imageId });
+      continue;
+    }
+
+    const bucket = RAW_BUCKET;
+    const key = originalKey;
+
     try {
+      console.info('Starting AI Analysis', { imageId, bucket, key });
+
+      // Step 1: Detect labels
+      const labelsResponse = await detectLabels(bucket, key);
+
+      // Step 2: Detect moderation labels
+      const moderationResponse = await detectModeration(bucket, key);
+
+      // Step 3: Map responses to our schema
+      const aiTags = mapToAiTags(labelsResponse);
+      const moderationLabels = mapToModerationLabels(moderationResponse);
+      const moderationStatus = determineModerationStatus(moderationLabels);
+
+      console.info('AI Analysis complete', {
+        imageId,
+        tagCount: aiTags.length,
+        moderationStatus,
+        topTags: aiTags.slice(0, 5).map(t => t.name),
+      });
+
+      // Step 4: Update main image record with AI results
       await ddbClient.send(new UpdateCommand({
         TableName: IMAGE_TABLE,
-        Key: { PK: event.pk, SK: event.sk },
+        Key: { PK, SK },
         UpdateExpression: `
           SET #status = :status,
-              aiAnalysisError = :error,
-              moderationStatus = :modStatus,
+              aiTags = :aiTags,
+              moderationLabels = :moderationLabels,
+              moderationStatus = :moderationStatus,
+              GSI2PK = :gsi2pk,
+              GSI2SK = :gsi2sk,
               updatedAt = :now
         `,
         ExpressionAttributeNames: { '#status': 'status' },
         ExpressionAttributeValues: {
-          ':status': 'COMPLETED', // Still mark as completed
-          ':error': error instanceof Error ? error.message : String(error),
-          ':modStatus': 'PENDING', // Needs manual review since AI failed
+          ':status': 'COMPLETED',
+          ':aiTags': aiTags,
+          ':moderationLabels': moderationLabels,
+          ':moderationStatus': moderationStatus,
+          ':gsi2pk': `MOD#${moderationStatus}`,
+          ':gsi2sk': new Date().toISOString(),
           ':now': new Date().toISOString(),
         },
       }));
-    } catch (updateError) {
-      console.error('Failed to update error status', { updateError });
+
+      // Step 5: Write tag index items for GSI1 search
+      const significantTags = aiTags.filter(tag => tag.confidence >= 70);
+
+      if (significantTags.length > 0) {
+        const batches = chunkArray(significantTags, 25);
+        for (const batch of batches) {
+          await ddbClient.send(new BatchWriteCommand({
+            RequestItems: {
+              [IMAGE_TABLE]: batch.map(tag => ({
+                PutRequest: {
+                  Item: {
+                    PK: `TAG#${tag.name}`,
+                    SK: `IMG#${imageId}`,
+                    GSI1PK: `TAG#${tag.name}`,
+                    GSI1SK: `IMG#${imageId}`,
+                    imageId,
+                    userId,
+                    confidence: tag.confidence,
+                    createdAt: new Date().toISOString(),
+                  },
+                },
+              })),
+            },
+          }));
+        }
+      }
+
+      console.info('AI Analyzer completed successfully for record', { imageId });
+
+    } catch (error) {
+      console.error('AI Analyzer failed for record', {
+        imageId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      try {
+        await ddbClient.send(new UpdateCommand({
+          TableName: IMAGE_TABLE,
+          Key: { PK, SK },
+          UpdateExpression: `
+            SET #status = :status,
+                aiAnalysisError = :error,
+                moderationStatus = :modStatus,
+                updatedAt = :now
+          `,
+          ExpressionAttributeNames: { '#status': 'status' },
+          ExpressionAttributeValues: {
+            ':status': 'COMPLETED',
+            ':error': error instanceof Error ? error.message : String(error),
+            ':modStatus': 'PENDING',
+            ':now': new Date().toISOString(),
+          },
+        }));
+      } catch (updateError) {
+        console.error('Failed to update error status', { updateError });
+      }
     }
   }
 };
