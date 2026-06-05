@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { apiService } from '../services/api';
 
+const abortControllers = new Map();
+
 export const useImageStore = create((set, get) => ({
   images: [],
   publicImages: [],
@@ -73,6 +75,9 @@ export const useImageStore = create((set, get) => ({
         file.size
       );
 
+      const controller = new AbortController();
+      abortControllers.set(fileName, controller);
+
       // 3. Perform direct S3 or Mock upload
       await apiService.uploadImageToS3(uploadUrl, fields, file, (progress) => {
         set((state) => ({
@@ -81,7 +86,9 @@ export const useImageStore = create((set, get) => ({
             [fileName]: { ...state.uploadingFiles[fileName], progress },
           },
         }));
-      });
+      }, controller.signal);
+
+      abortControllers.delete(fileName);
 
       // 4. Update status to PROCESSING (Lambda trigger begins)
       set((state) => ({
@@ -107,13 +114,41 @@ export const useImageStore = create((set, get) => ({
 
       return imageId;
     } catch (error) {
+      abortControllers.delete(fileName);
+      
+      const isCanceled = error.name === 'AbortError' || error.message === 'AbortError';
+      
       set((state) => ({
         uploadingFiles: {
           ...state.uploadingFiles,
-          [fileName]: { progress: 0, status: 'FAILED', error: error.message },
+          [fileName]: { 
+            progress: isCanceled ? state.uploadingFiles[fileName]?.progress || 0 : 0, 
+            status: isCanceled ? 'CANCELED' : 'FAILED', 
+            error: isCanceled ? 'Upload canceled' : error.message 
+          },
         },
       }));
+
+      // If canceled, clean it up after a few seconds too
+      if (isCanceled) {
+        setTimeout(() => {
+          set((state) => {
+            const nextUploads = { ...state.uploadingFiles };
+            delete nextUploads[fileName];
+            return { uploadingFiles: nextUploads };
+          });
+        }, 3000);
+      }
+
       throw error;
+    }
+  },
+
+  cancelUpload: (fileName) => {
+    const controller = abortControllers.get(fileName);
+    if (controller) {
+      controller.abort();
+      abortControllers.delete(fileName);
     }
   },
 

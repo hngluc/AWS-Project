@@ -140,12 +140,19 @@ export const apiService = {
   },
 
   // --- Upload to S3 (handles actual S3 or Mock upload) ---
-  async uploadImageToS3(uploadUrl, fields, file, onProgress) {
+  async uploadImageToS3(uploadUrl, fields, file, onProgress, signal) {
     if (authService.isDemoMode()) {
       // Simulate upload progress
       for (let i = 10; i <= 100; i += 20) {
+        if (signal?.aborted) {
+          throw new Error('AbortError');
+        }
         await mockDelay(150);
         if (onProgress) onProgress(i);
+      }
+
+      if (signal?.aborted) {
+        throw new Error('AbortError');
       }
 
       const session = await authService.getCurrentUser();
@@ -157,8 +164,13 @@ export const apiService = {
       const reader = new FileReader();
       reader.readAsDataURL(file);
 
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         reader.onloadend = async () => {
+          if (signal?.aborted) {
+            reject(new Error('AbortError'));
+            return;
+          }
+
           const imageUrl = reader.result;
 
           const newImage = {
@@ -194,6 +206,14 @@ export const apiService = {
     // Real AWS S3 Upload — PUT with raw file body (matches PutObject presigned URL)
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          xhr.abort();
+          reject(new Error('AbortError'));
+        });
+      }
+
       xhr.open('PUT', uploadUrl, true); // PUT, not POST — PutObject presigned URL
       xhr.setRequestHeader('Content-Type', file.type);
 

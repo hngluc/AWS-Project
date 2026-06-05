@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { useImageStore } from '../../store/imageStore';
-import { UploadCloud, CheckCircle, AlertTriangle, Loader } from 'lucide-react';
+import { UploadCloud, CheckCircle, AlertTriangle, Loader, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export const ImageUploader = () => {
   const uploadImage = useImageStore((state) => state.uploadImage);
+  const cancelUpload = useImageStore((state) => state.cancelUpload);
   const uploadingFiles = useImageStore((state) => state.uploadingFiles);
   
   const [isDragging, setIsDragging] = useState(false);
@@ -169,6 +170,32 @@ export const ImageUploader = () => {
                           <span style={{ color: 'var(--danger)' }}>Failed</span>
                         </>
                       )}
+                      {task.status === 'CANCELED' && (
+                        <>
+                          <X size={14} style={{ color: 'var(--text-muted)' }} />
+                          <span style={{ color: 'var(--text-muted)' }}>Canceled</span>
+                        </>
+                      )}
+                      {task.status === 'UPLOADING' && (
+                        <button 
+                          onClick={() => cancelUpload(name)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--danger)',
+                            padding: '2px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginLeft: '0.5rem',
+                            borderRadius: '4px'
+                          }}
+                          title="Cancel Upload"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                     </span>
                   </div>
 
@@ -178,7 +205,7 @@ export const ImageUploader = () => {
                       style={{ 
                         height: '100%', 
                         width: `${task.progress}%`, 
-                        background: task.status === 'FAILED' ? 'var(--danger)' : task.status === 'PROCESSING' ? 'var(--warning)' : 'linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)',
+                        background: task.status === 'FAILED' ? 'var(--danger)' : task.status === 'CANCELED' ? 'var(--text-muted)' : task.status === 'PROCESSING' ? 'var(--warning)' : 'linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)',
                         transition: 'width 0.2s ease'
                       }}
                     />
