@@ -121,7 +121,7 @@ export const authService = {
             refreshToken,
             email: payload.email,
             name: payload.name || email.split('@')[0],
-            role: payload['cognito:groups']?.includes('Admins') ? 'admin' : 'user',
+            role: payload['cognito:groups']?.includes('admin') ? 'admin' : 'user',
             userId: payload.sub,
           };
           resolve(tokenData);
@@ -171,7 +171,7 @@ export const authService = {
             refreshToken: session.getRefreshToken().getToken(),
             email: emailAttr?.getValue() || payload.email,
             name: nameAttr?.getValue() || payload.name || payload.email?.split('@')[0],
-            role: payload['cognito:groups']?.includes('Admins') ? 'admin' : 'user',
+            role: payload['cognito:groups']?.includes('admin') ? 'admin' : 'user',
             userId: payload.sub,
           });
         });

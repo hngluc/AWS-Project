@@ -20,6 +20,10 @@ export class StorageStack extends cdk.Stack {
 
     const { projectName, environment } = props;
     const nameSuffix = `${projectName}-${environment}`.toLowerCase();
+    const frontendDomain = this.node.tryGetContext('frontendDomain') || '';
+    const allowedOrigins = environment === 'production' && frontendDomain
+      ? [frontendDomain]
+      : ['http://localhost:5173', 'http://localhost:3000'];
 
     // ─── S3 Bucket: Raw Images ──────────────────────────────────────
     // Stores original uploaded images. NOT publicly accessible.
@@ -38,9 +42,7 @@ export class StorageStack extends cdk.Stack {
       cors: [
         {
           allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
-          allowedOrigins: environment === 'production'
-            ? ['https://your-domain.com'] // TODO: Replace with actual domain
-            : ['http://localhost:5173', 'http://localhost:3000'],
+          allowedOrigins: allowedOrigins,
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag'],
           maxAge: 3600,

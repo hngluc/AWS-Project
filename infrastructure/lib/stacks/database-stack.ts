@@ -97,14 +97,8 @@ export class DatabaseStack extends cdk.Stack {
     // PK: USER#<userId>  |  SK: QUOTA#MONTHLY | QUOTA#STORAGE
     this.userQuotaTable = new dynamodb.Table(this, 'UserQuotaTable', {
       tableName: `${projectName}-UserQuotas-${environment}`,
-      partitionKey: {
-        name: 'PK',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'SK',
-        type: dynamodb.AttributeType.STRING,
-      },
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       encryption: dynamodb.TableEncryption.AWS_MANAGED,
       removalPolicy: environment === 'production'

@@ -15,6 +15,7 @@ export class AuthStack extends cdk.Stack {
     super(scope, id, props);
 
     const { projectName, environment } = props;
+    const frontendDomain = this.node.tryGetContext('frontendDomain') || '';
 
     // ─── Cognito User Pool ──────────────────────────────────────────
     this.userPool = new cognito.UserPool(this, 'UserPool', {
@@ -126,11 +127,11 @@ export class AuthStack extends cdk.Stack {
           cognito.OAuthScope.OPENID,
           cognito.OAuthScope.PROFILE,
         ],
-        callbackUrls: environment === 'production'
-          ? ['https://your-domain.com/callback']
+        callbackUrls: environment === 'production' && frontendDomain
+          ? [`${frontendDomain}/callback`]
           : ['http://localhost:5173/callback', 'http://localhost:3000/callback'],
-        logoutUrls: environment === 'production'
-          ? ['https://your-domain.com/logout']
+        logoutUrls: environment === 'production' && frontendDomain
+          ? [`${frontendDomain}/logout`]
           : ['http://localhost:5173/logout', 'http://localhost:3000/logout'],
       },
 

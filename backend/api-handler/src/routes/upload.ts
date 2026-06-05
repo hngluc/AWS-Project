@@ -223,9 +223,9 @@ async function checkUserQuota(
     if (result.Item) {
       const quota = result.Item;
 
-      // Check if we're in a new month — reset counter
+      // Check if we're in a new month — counters will be reset on update
       if (quota.periodStart < monthStart) {
-        return { allowed: true }; // Will be reset on update
+        return { allowed: true };
       }
 
       // Check upload count
@@ -260,30 +260,63 @@ async function updateUserQuota(userId: string, fileSize: number): Promise<void> 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
   try {
-    await docClient.send(new UpdateCommand({
+    // First, check if we need to reset (new month)
+    const existing = await docClient.send(new GetCommand({
       TableName: QUOTA_TABLE,
       Key: {
         PK: `USER#${userId}`,
         SK: 'QUOTA#MONTHLY',
       },
-      UpdateExpression: `
-        SET currentCount = if_not_exists(currentCount, :zero) + :one,
-            currentStorageBytes = if_not_exists(currentStorageBytes, :zero) + :fileSize,
-            maxCount = if_not_exists(maxCount, :maxCount),
-            maxStorageBytes = if_not_exists(maxStorageBytes, :maxStorage),
-            periodStart = if_not_exists(periodStart, :periodStart),
-            updatedAt = :now
-      `,
-      ExpressionAttributeValues: {
-        ':zero': 0,
-        ':one': 1,
-        ':fileSize': fileSize,
-        ':maxCount': 1000,
-        ':maxStorage': 5 * 1024 * 1024 * 1024,
-        ':periodStart': monthStart,
-        ':now': now.toISOString(),
-      },
     }));
+
+    if (existing.Item && existing.Item.periodStart < monthStart) {
+      // New month — reset counters and start fresh
+      await docClient.send(new UpdateCommand({
+        TableName: QUOTA_TABLE,
+        Key: {
+          PK: `USER#${userId}`,
+          SK: 'QUOTA#MONTHLY',
+        },
+        UpdateExpression: `
+          SET currentCount = :one,
+              currentStorageBytes = :fileSize,
+              periodStart = :periodStart,
+              updatedAt = :now
+        `,
+        ExpressionAttributeValues: {
+          ':one': 1,
+          ':fileSize': fileSize,
+          ':periodStart': monthStart,
+          ':now': now.toISOString(),
+        },
+      }));
+    } else {
+      // Same month — increment counters atomically
+      await docClient.send(new UpdateCommand({
+        TableName: QUOTA_TABLE,
+        Key: {
+          PK: `USER#${userId}`,
+          SK: 'QUOTA#MONTHLY',
+        },
+        UpdateExpression: `
+          SET currentCount = if_not_exists(currentCount, :zero) + :one,
+              currentStorageBytes = if_not_exists(currentStorageBytes, :zero) + :fileSize,
+              maxCount = if_not_exists(maxCount, :maxCount),
+              maxStorageBytes = if_not_exists(maxStorageBytes, :maxStorage),
+              periodStart = if_not_exists(periodStart, :periodStart),
+              updatedAt = :now
+        `,
+        ExpressionAttributeValues: {
+          ':zero': 0,
+          ':one': 1,
+          ':fileSize': fileSize,
+          ':maxCount': 1000,
+          ':maxStorage': 5 * 1024 * 1024 * 1024,
+          ':periodStart': monthStart,
+          ':now': now.toISOString(),
+        },
+      }));
+    }
   } catch (error) {
     console.error('Failed to update quota', { error, userId });
     // Non-blocking: don't fail the upload if quota tracking fails

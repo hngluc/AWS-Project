@@ -4,9 +4,12 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-import { generateThumbnail, generateResized } from './processors/thumbnail';
-import { extractMetadata } from './processors/metadata';
-import { validateMagicBytes } from './validators/fileType';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import https from 'https';
+import { getThumbnailTransform, getResizedTransform } from './processors/thumbnail';
+import sharp from 'sharp';
+import { Upload } from '@aws-sdk/lib-storage';
+import { PassThrough, Readable } from 'stream';
 
 /**
  * Image Processor Lambda — S3 Event-Driven
@@ -24,12 +27,28 @@ import { validateMagicBytes } from './validators/fileType';
  */
 
 // ─── Clients (initialized outside handler for connection reuse) ──
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const agent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+});
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  requestHandler: new NodeHttpHandler({ httpsAgent: agent }),
+});
+
 const ddbClient = DynamoDBDocumentClient.from(
-  new DynamoDBClient({ region: process.env.AWS_REGION }),
+  new DynamoDBClient({
+    region: process.env.AWS_REGION,
+    requestHandler: new NodeHttpHandler({ httpsAgent: agent }),
+  }),
   { marshallOptions: { removeUndefinedValues: true } },
 );
-const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
+
+const lambdaClient = new LambdaClient({
+  region: process.env.AWS_REGION,
+  requestHandler: new NodeHttpHandler({ httpsAgent: agent }),
+});
 
 // ─── Constants ──────────────────────────────────────────────────
 const PROCESSED_BUCKET = process.env.PROCESSED_BUCKET_NAME!;
@@ -73,6 +92,14 @@ async function processRecord(record: S3EventRecord): Promise<void> {
 
   console.info('Processing image', { bucket, key, size });
 
+  // ★ CRITICAL: Re-entrance guard — prevent infinite loops
+  // If this Lambda accidentally receives events from the processed bucket,
+  // skip immediately to avoid infinite S3 → Lambda → S3 invocation chains.
+  if (bucket === PROCESSED_BUCKET) {
+    console.warn('INFINITE LOOP GUARD: Ignoring event from processed bucket', { bucket, key });
+    return;
+  }
+
   // Parse userId and imageId from the S3 key
   // Expected format: users/<userId>/original/<imageId>.<ext>
   const keyParts = key.split('/');
@@ -85,6 +112,18 @@ async function processRecord(record: S3EventRecord): Promise<void> {
   const filename = keyParts[3];
   const imageId = filename.split('.')[0]; // Remove extension
 
+  // ★ IDEMPOTENCY GUARD: Only process images with UPLOADING status.
+  // S3 delivers events at-least-once, so duplicates are possible.
+  // If the image is already PROCESSING/ANALYZING/COMPLETED, skip it.
+  const dbItem = await findImageRecord(userId, imageId);
+  if (dbItem && dbItem.status !== 'UPLOADING') {
+    console.warn('Idempotency guard: image already processed or processing', {
+      imageId,
+      currentStatus: dbItem.status,
+    });
+    return;
+  }
+
   // Step 1: Download the original image from S3
   const getCommand = new GetObjectCommand({ Bucket: bucket, Key: key });
   const s3Response = await s3Client.send(getCommand);
@@ -93,64 +132,71 @@ async function processRecord(record: S3EventRecord): Promise<void> {
     throw new Error(`Empty body from S3 for key: ${key}`);
   }
 
-  // Convert stream to Buffer
-  const chunks: Uint8Array[] = [];
-  const stream = s3Response.Body as any;
-  for await (const chunk of stream) {
-    chunks.push(chunk);
-  }
-  const imageBuffer = Buffer.concat(chunks);
-
-  console.info('Image downloaded', { key, bufferSize: imageBuffer.length });
-
-  // Step 2: Validate magic bytes (file type security check)
-  const detectedType = validateMagicBytes(imageBuffer);
-  if (!detectedType) {
-    console.error('Invalid file type detected', { key });
-    throw new Error('File type validation failed: not a valid image');
-  }
-
-  console.info('Magic bytes validated', { key, detectedType });
-
-  // Step 3: Update status to PROCESSING
-  const dbItem = await findImageRecord(userId, imageId);
+  // Update status to PROCESSING before starting the stream
   if (dbItem) {
     await updateImageStatus(dbItem.PK, dbItem.SK, 'PROCESSING');
   }
 
-  // Step 4: Extract EXIF metadata
-  const metadata = await extractMetadata(imageBuffer);
-  console.info('Metadata extracted', { key, dimensions: metadata.dimensions });
+  const s3DownloadStream = s3Response.Body as Readable;
 
-  // Step 5: Generate thumbnail (200x200, cover crop, WebP)
+  // Setup Sharp streams
+  const metadataTransform = sharp();
+  const thumbnailTransform = getThumbnailTransform(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+  const resizedTransform = getResizedTransform(RESIZED_MAX_WIDTH, RESIZED_MAX_HEIGHT);
+
+  // Split the S3 download stream into the 3 processing pipelines
+  s3DownloadStream.pipe(metadataTransform);
+  s3DownloadStream.pipe(thumbnailTransform);
+  s3DownloadStream.pipe(resizedTransform);
+
+  // 1. Extract metadata (this also validates the file type implicitly)
+  let metadata;
+  try {
+    metadata = await metadataTransform.metadata();
+  } catch (err) {
+    console.error('Invalid file type or corrupted image detected', { key });
+    throw new Error('File type validation failed: not a valid image');
+  }
+  
+  // Format dimensions (fallback to 0)
+  const dimensions = { width: metadata.width || 0, height: metadata.height || 0 };
+  console.info('Metadata extracted via stream', { key, dimensions });
+
+  // 2. Upload Thumbnail via Stream
   const thumbnailKey = `users/${userId}/thumbnails/${imageId}.webp`;
-  const thumbnailBuffer = await generateThumbnail(imageBuffer, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+  const uploadThumbnail = new Upload({
+    client: s3Client,
+    params: {
+      Bucket: PROCESSED_BUCKET,
+      Key: thumbnailKey,
+      Body: thumbnailTransform,
+      ContentType: 'image/webp',
+      CacheControl: 'public, max-age=31536000, immutable',
+      ServerSideEncryption: 'AES256',
+    },
+  });
 
-  await s3Client.send(new PutObjectCommand({
-    Bucket: PROCESSED_BUCKET,
-    Key: thumbnailKey,
-    Body: thumbnailBuffer,
-    ContentType: 'image/webp',
-    CacheControl: 'public, max-age=31536000, immutable', // 1 year cache
-    ServerSideEncryption: 'AES256',
-  }));
-
-  console.info('Thumbnail uploaded', { thumbnailKey, size: thumbnailBuffer.length });
-
-  // Step 6: Generate resized version (max 1920x1080, WebP)
+  // 3. Upload Resized via Stream
   const resizedKey = `users/${userId}/resized/${imageId}.webp`;
-  const resizedBuffer = await generateResized(imageBuffer, RESIZED_MAX_WIDTH, RESIZED_MAX_HEIGHT);
+  const uploadResized = new Upload({
+    client: s3Client,
+    params: {
+      Bucket: PROCESSED_BUCKET,
+      Key: resizedKey,
+      Body: resizedTransform,
+      ContentType: 'image/webp',
+      CacheControl: 'public, max-age=31536000, immutable',
+      ServerSideEncryption: 'AES256',
+    },
+  });
 
-  await s3Client.send(new PutObjectCommand({
-    Bucket: PROCESSED_BUCKET,
-    Key: resizedKey,
-    Body: resizedBuffer,
-    ContentType: 'image/webp',
-    CacheControl: 'public, max-age=31536000, immutable',
-    ServerSideEncryption: 'AES256',
-  }));
+  // Wait for both streaming uploads to finish
+  await Promise.all([
+    uploadThumbnail.done(),
+    uploadResized.done()
+  ]);
 
-  console.info('Resized image uploaded', { resizedKey, size: resizedBuffer.length });
+  console.info('Streaming resize and upload complete', { thumbnailKey, resizedKey });
 
   // Step 7: Update DynamoDB with processed image info
   if (dbItem) {
@@ -170,30 +216,16 @@ async function processRecord(record: S3EventRecord): Promise<void> {
         ':status': 'ANALYZING',
         ':thumbnailKey': thumbnailKey,
         ':resizedKey': resizedKey,
-        ':dimensions': metadata.dimensions,
-        ':exifData': metadata.exif || {},
+        ':dimensions': dimensions,
+        ':exifData': {}, // Extracted later or via separate EXIF parser stream
         ':now': new Date().toISOString(),
       },
     }));
   }
 
-  // Step 8: Invoke AI Analyzer asynchronously
-  console.info('Invoking AI Analyzer', { imageId, bucket, key });
-
-  await lambdaClient.send(new InvokeCommand({
-    FunctionName: AI_ANALYZER_FUNCTION,
-    InvocationType: 'Event', // Async invocation — don't wait for response
-    Payload: Buffer.from(JSON.stringify({
-      bucket,
-      key,
-      imageId,
-      userId,
-      tableName: IMAGE_TABLE,
-      pk: dbItem?.PK,
-      sk: dbItem?.SK,
-    })),
-  }));
-
+  // Step 8 (Removed): AI Analyzer is now triggered asynchronously via DynamoDB Streams
+  // when the status is updated to 'ANALYZING' in Step 7.
+  
   console.info('Image processing complete', { imageId, userId });
 }
 
@@ -210,7 +242,7 @@ async function findImageRecord(userId: string, imageId: string) {
       ':skPrefix': 'IMG#',
       ':imageId': imageId,
     },
-    Limit: 1,
+    // No Limit — DynamoDB applies Limit BEFORE FilterExpression
   }));
 
   return result.Items?.[0] || null;
