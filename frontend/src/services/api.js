@@ -85,9 +85,9 @@ function runMockProcessing(imageId, userId, imageFile) {
     if (index === -1) return;
 
     // Detect if "unsafe" tag is present in name/type for demonstration
-    const isUnsafe = imageFile.name.toLowerCase().includes('unsafe') || 
-                      imageFile.name.toLowerCase().includes('nude') || 
-                      imageFile.name.toLowerCase().includes('blood');
+    const isUnsafe = imageFile.name.toLowerCase().includes('unsafe') ||
+      imageFile.name.toLowerCase().includes('nude') ||
+      imageFile.name.toLowerCase().includes('blood');
 
     // Generate random AI tags
     const numTags = 3 + Math.floor(Math.random() * 3);
@@ -152,34 +152,43 @@ export const apiService = {
       // Extract imageId from key format: users/mock/original/img_XXXXXXX_filename
       const keyFilename = fields.key.split('/').pop();
       const imageId = keyFilename.split('_').slice(0, 2).join('_'); // "img_XXXXXXX"
-      const imageUrl = URL.createObjectURL(file); // Create local URL for display in browser
 
-      const newImage = {
-        imageId,
-        userId: session.userId,
-        originalKey: fields.key,
-        thumbnailUrl: imageUrl, // use object URL locally
-        resizedUrl: imageUrl,
-        originalFilename: file.name,
-        mimeType: file.type,
-        fileSize: file.size,
-        dimensions: { width: 1920, height: 1080 },
-        status: 'UPLOADING',
-        moderationStatus: 'SAFE',
-        visibility: 'PRIVATE',
-        createdAt: new Date().toISOString(),
-        aiTags: [],
-        exifData: null,
-      };
+      // Read file as Base64 to persist across page reloads in Demo Mode
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
 
-      const images = JSON.parse(localStorage.getItem('mock_images') || '[]');
-      images.unshift(newImage);
-      saveMockImages(images);
+      return new Promise((resolve) => {
+        reader.onloadend = async () => {
+          const imageUrl = reader.result;
 
-      // Trigger local background processing
-      runMockProcessing(imageId, session.userId, file);
+          const newImage = {
+            imageId,
+            userId: session.userId,
+            originalKey: fields.key,
+            thumbnailUrl: imageUrl,
+            resizedUrl: imageUrl,
+            originalFilename: file.name,
+            mimeType: file.type,
+            fileSize: file.size,
+            dimensions: { width: 1920, height: 1080 },
+            status: 'UPLOADING',
+            moderationStatus: 'SAFE',
+            visibility: 'PRIVATE',
+            createdAt: new Date().toISOString(),
+            aiTags: [],
+            exifData: null,
+          };
 
-      return { imageId };
+          const images = JSON.parse(localStorage.getItem('mock_images') || '[]');
+          images.unshift(newImage);
+          saveMockImages(images);
+
+          // Trigger local background processing
+          runMockProcessing(imageId, session.userId, file);
+
+          resolve({ imageId });
+        };
+      });
     }
 
     // Real AWS S3 Upload — PUT with raw file body (matches PutObject presigned URL)
@@ -264,7 +273,7 @@ export const apiService = {
       const allImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
       const index = allImages.findIndex((img) => img.imageId === imageId);
       if (index === -1) throw new Error('Image not found');
-      
+
       allImages[index] = { ...allImages[index], ...updates };
       saveMockImages(allImages);
       return allImages[index];
@@ -291,13 +300,29 @@ export const apiService = {
     });
   },
 
+  // --- Bulk Delete Images ---
+  async bulkDeleteImages(imageIds) {
+    if (authService.isDemoMode()) {
+      await mockDelay(500);
+      const allImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
+      const filtered = allImages.filter((img) => !imageIds.includes(img.imageId));
+      saveMockImages(filtered);
+      return { success: true, deletedCount: imageIds.length };
+    }
+
+    return request(`/v1/images/bulk`, {
+      method: 'DELETE',
+      body: JSON.stringify({ imageIds }),
+    });
+  },
+
   // --- Search by Tag ---
   async searchByTag(tag) {
     const session = await authService.getCurrentUser();
     if (authService.isDemoMode()) {
       await mockDelay(400);
       const images = getMockImages(session.userId);
-      const filtered = images.filter((img) => 
+      const filtered = images.filter((img) =>
         img.aiTags?.some(t => t.name.toLowerCase() === tag.toLowerCase())
       );
       return {
