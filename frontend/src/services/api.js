@@ -341,8 +341,14 @@ export const apiService = {
     const session = await authService.getCurrentUser();
     if (authService.isDemoMode()) {
       await mockDelay(400);
-      const images = getMockImages(session.userId);
-      const filtered = images.filter((img) =>
+      const allImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
+      
+      // Lấy danh sách ảnh mà người dùng được phép xem: ảnh của chính họ HOẶC ảnh public
+      const visibleImages = allImages.filter((img) => 
+        session.role === 'admin' || img.userId === session.userId || img.visibility === 'PUBLIC'
+      );
+      
+      const filtered = visibleImages.filter((img) =>
         img.aiTags?.some(t => t.name.toLowerCase() === tag.toLowerCase())
       );
       return {
