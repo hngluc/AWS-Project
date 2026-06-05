@@ -118,8 +118,8 @@ export async function handleListImages(
     // Only fetch needed attributes (reduces RCU)
     ProjectionExpression: [
       'imageId', 'originalFilename', 'thumbnailKey', 'resizedKey',
-      'mimeType', 'fileSize', 'aiTags', 'moderationStatus',
-      '#status', 'visibility', 'createdAt', 'updatedAt',
+      'mimeType', 'fileSize', 'dimensions', 'exifData', 'aiTags',
+      'moderationStatus', '#status', 'visibility', 'createdAt', 'updatedAt',
     ].join(', '),
     ExpressionAttributeNames: { '#status': 'status' },
   }));

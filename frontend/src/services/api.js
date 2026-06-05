@@ -10,7 +10,7 @@ async function request(path, options = {}) {
   };
 
   if (session?.idToken) {
-    headers['Authorization'] = `${session.idToken}`;
+    headers['Authorization'] = `Bearer ${session.idToken}`;
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -149,7 +149,9 @@ export const apiService = {
       }
 
       const session = await authService.getCurrentUser();
-      const imageId = fields.key.split('_')[0].split('/').pop();
+      // Extract imageId from key format: users/mock/original/img_XXXXXXX_filename
+      const keyFilename = fields.key.split('/').pop();
+      const imageId = keyFilename.split('_').slice(0, 2).join('_'); // "img_XXXXXXX"
       const imageUrl = URL.createObjectURL(file); // Create local URL for display in browser
 
       const newImage = {
@@ -180,16 +182,11 @@ export const apiService = {
       return { imageId };
     }
 
-    // Real AWS S3 Multipart Form Upload
-    const formData = new FormData();
-    Object.entries(fields).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-    formData.append('file', file);
-
+    // Real AWS S3 Upload — PUT with raw file body (matches PutObject presigned URL)
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', uploadUrl, true);
+      xhr.open('PUT', uploadUrl, true); // PUT, not POST — PutObject presigned URL
+      xhr.setRequestHeader('Content-Type', file.type);
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
@@ -202,12 +199,12 @@ export const apiService = {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new Error('S3 upload failed'));
+          reject(new Error(`S3 upload failed with status ${xhr.status}`));
         }
       };
 
       xhr.onerror = () => reject(new Error('S3 upload network error'));
-      xhr.send(formData);
+      xhr.send(file); // Send raw file, not FormData
     });
   },
 

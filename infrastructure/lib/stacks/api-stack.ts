@@ -41,6 +41,11 @@ export class ApiStack extends cdk.Stack {
       distribution,
     } = props;
 
+    const frontendDomain = this.node.tryGetContext('frontendDomain') || '';
+    const allowedOrigins = environment === 'production' && frontendDomain
+      ? [frontendDomain]
+      : ['http://localhost:5173', 'http://localhost:3000'];
+
     // Resolve paths to Lambda source code (relative to infrastructure/)
     const backendRoot = path.join(__dirname, '..', '..', '..', 'backend');
 
@@ -250,9 +255,7 @@ export class ApiStack extends cdk.Stack {
 
       // CORS configuration
       defaultCorsPreflightOptions: {
-        allowOrigins: environment === 'production'
-          ? ['https://your-domain.com'] // TODO: Replace with actual domain
-          : ['http://localhost:5173', 'http://localhost:3000'],
+        allowOrigins: allowedOrigins,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: [
           'Content-Type',

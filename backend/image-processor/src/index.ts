@@ -73,6 +73,14 @@ async function processRecord(record: S3EventRecord): Promise<void> {
 
   console.info('Processing image', { bucket, key, size });
 
+  // ★ CRITICAL: Re-entrance guard — prevent infinite loops
+  // If this Lambda accidentally receives events from the processed bucket,
+  // skip immediately to avoid infinite S3 → Lambda → S3 invocation chains.
+  if (bucket === PROCESSED_BUCKET) {
+    console.warn('INFINITE LOOP GUARD: Ignoring event from processed bucket', { bucket, key });
+    return;
+  }
+
   // Parse userId and imageId from the S3 key
   // Expected format: users/<userId>/original/<imageId>.<ext>
   const keyParts = key.split('/');
@@ -84,6 +92,18 @@ async function processRecord(record: S3EventRecord): Promise<void> {
   const userId = keyParts[1];
   const filename = keyParts[3];
   const imageId = filename.split('.')[0]; // Remove extension
+
+  // ★ IDEMPOTENCY GUARD: Only process images with UPLOADING status.
+  // S3 delivers events at-least-once, so duplicates are possible.
+  // If the image is already PROCESSING/ANALYZING/COMPLETED, skip it.
+  const dbItem = await findImageRecord(userId, imageId);
+  if (dbItem && dbItem.status !== 'UPLOADING') {
+    console.warn('Idempotency guard: image already processed or processing', {
+      imageId,
+      currentStatus: dbItem.status,
+    });
+    return;
+  }
 
   // Step 1: Download the original image from S3
   const getCommand = new GetObjectCommand({ Bucket: bucket, Key: key });
@@ -112,8 +132,7 @@ async function processRecord(record: S3EventRecord): Promise<void> {
 
   console.info('Magic bytes validated', { key, detectedType });
 
-  // Step 3: Update status to PROCESSING
-  const dbItem = await findImageRecord(userId, imageId);
+  // Step 3: Update status to PROCESSING (dbItem was fetched earlier in idempotency guard)
   if (dbItem) {
     await updateImageStatus(dbItem.PK, dbItem.SK, 'PROCESSING');
   }
@@ -178,6 +197,11 @@ async function processRecord(record: S3EventRecord): Promise<void> {
   }
 
   // Step 8: Invoke AI Analyzer asynchronously
+  if (!dbItem) {
+    console.error('Cannot invoke AI Analyzer: DB record not found', { imageId, userId });
+    return;
+  }
+
   console.info('Invoking AI Analyzer', { imageId, bucket, key });
 
   await lambdaClient.send(new InvokeCommand({
@@ -189,8 +213,8 @@ async function processRecord(record: S3EventRecord): Promise<void> {
       imageId,
       userId,
       tableName: IMAGE_TABLE,
-      pk: dbItem?.PK,
-      sk: dbItem?.SK,
+      pk: dbItem.PK,
+      sk: dbItem.SK,
     })),
   }));
 
@@ -210,7 +234,7 @@ async function findImageRecord(userId: string, imageId: string) {
       ':skPrefix': 'IMG#',
       ':imageId': imageId,
     },
-    Limit: 1,
+    // No Limit — DynamoDB applies Limit BEFORE FilterExpression
   }));
 
   return result.Items?.[0] || null;
