@@ -6,7 +6,8 @@ import {
   Search, 
   ShieldAlert, 
   LogOut,
-  User
+  User,
+  Globe
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
@@ -16,6 +17,7 @@ export const Sidebar = ({ activeTab, onTabChange }) => {
 
   const menuItems = [
     { id: 'gallery', label: 'My Gallery', icon: <ImageIcon size={20} /> },
+    { id: 'community', label: 'Community Gallery', icon: <Globe size={20} /> },
     { id: 'upload', label: 'Upload Images', icon: <UploadCloud size={20} /> },
     { id: 'search', label: 'AI Tag Search', icon: <Search size={20} /> },
   ];

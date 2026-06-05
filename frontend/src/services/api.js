@@ -226,6 +226,24 @@ export const apiService = {
     return request(url);
   },
 
+  // --- List Public Images ---
+  async getPublicImages(limit = 20, cursor = '') {
+    if (authService.isDemoMode()) {
+      await mockDelay(400);
+      const allImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
+      const publicImages = allImages.filter((img) => img.visibility === 'PUBLIC');
+      return {
+        images: publicImages,
+        nextCursor: null,
+        totalCount: publicImages.length,
+      };
+    }
+
+    let url = `/v1/images/public?limit=${limit}`;
+    if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+    return request(url);
+  },
+
   // --- Get Image Detail ---
   async getImage(imageId) {
     if (authService.isDemoMode()) {

@@ -16,7 +16,7 @@ import { Button } from './components/ui/Button';
 
 function App() {
   const { isAuthenticated, initialize, isLoading, user } = useAuthStore();
-  const { images, fetchImages, selectedImage, setSelectedImage } = useImageStore();
+  const { images, publicImages, fetchImages, fetchPublicImages, selectedImage, setSelectedImage } = useImageStore();
   
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
   const [activeTab, setActiveTab] = useState('gallery'); // 'gallery', 'upload', 'search', 'moderation'
@@ -29,9 +29,13 @@ function App() {
   // Fetch Images on Login or Tab Switch
   useEffect(() => {
     if (isAuthenticated) {
-      fetchImages();
+      if (activeTab === 'community') {
+        fetchPublicImages();
+      } else if (activeTab === 'gallery') {
+        fetchImages();
+      }
     }
-  }, [isAuthenticated, fetchImages]);
+  }, [isAuthenticated, activeTab, fetchImages, fetchPublicImages]);
 
   // Listen to mock background worker event updates for live-refreshing the UI
   useEffect(() => {
@@ -114,6 +118,8 @@ function App() {
         return 'AI Tag Search Portal';
       case 'moderation':
         return 'Admin Moderation Queue';
+      case 'community':
+        return 'Community Gallery';
       case 'gallery':
       default:
         return 'My Vault Gallery';
@@ -143,6 +149,31 @@ function App() {
             
             <ImageGrid 
               images={images} 
+              onImageClick={setSelectedImage} 
+              isLoading={isLoading} 
+            />
+          </div>
+        )}
+
+        {/* TAB 1.5: Community View */}
+        {activeTab === 'community' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                Discover public photographs shared by the community.
+              </p>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={fetchPublicImages}
+                icon={<RefreshCw size={14} />}
+              >
+                Refresh
+              </Button>
+            </div>
+            
+            <ImageGrid 
+              images={publicImages} 
               onImageClick={setSelectedImage} 
               isLoading={isLoading} 
             />

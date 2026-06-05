@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 
 export const useImageStore = create((set, get) => ({
   images: [],
+  publicImages: [],
   moderationQueue: [],
   selectedImage: null,
   isLoading: false,
@@ -17,6 +18,21 @@ export const useImageStore = create((set, get) => ({
       const response = await apiService.listImages();
       set({ 
         images: response.images, 
+        isLoading: false,
+        activeTag: '',
+        searchResult: null
+      });
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+    }
+  },
+
+  fetchPublicImages: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await apiService.getPublicImages();
+      set({ 
+        publicImages: response.images, 
         isLoading: false,
         activeTag: '',
         searchResult: null
