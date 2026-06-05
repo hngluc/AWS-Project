@@ -1,15 +1,52 @@
 import React from 'react';
-import { Eye, ShieldAlert, ShieldX } from 'lucide-react';
+import { Eye, ShieldAlert, ShieldX, Globe, CheckSquare, Square } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
-export const ImageCard = ({ image, onClick }) => {
-  const { originalFilename, thumbnailUrl, status, moderationStatus } = image;
+export const ImageCard = ({ image, onClick, selected = false, onSelect = null }) => {
+  const { imageId, originalFilename, thumbnailUrl, status, moderationStatus, visibility } = image;
 
   const isFlagged = moderationStatus === 'FLAGGED';
   const isRejected = moderationStatus === 'REJECTED';
 
   return (
-    <div className="image-card" onClick={onClick}>
+    <div 
+      className="image-card" 
+      onClick={onClick}
+      style={selected ? {
+        borderColor: 'var(--primary)',
+        borderWidth: '3px',
+        transform: 'scale(0.96)',
+        boxShadow: 'var(--glow-shadow)'
+      } : {}}
+    >
+      {/* Selection Checkbox */}
+      {onSelect && (
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(imageId);
+          }}
+          style={{
+            position: 'absolute',
+            top: '0.75rem',
+            right: '0.75rem',
+            zIndex: 20,
+            background: selected ? 'var(--primary)' : 'rgba(0,0,0,0.5)',
+            color: 'white',
+            borderRadius: '4px',
+            padding: '2px',
+            display: 'flex',
+            cursor: 'pointer',
+            opacity: selected ? 1 : 0.7,
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = selected ? '1' : '0.7'}
+        >
+          {selected ? <CheckSquare size={20} /> : <Square size={20} />}
+        </div>
+      )}
+
       {isRejected ? (
         <div 
           style={{ 
@@ -37,9 +74,17 @@ export const ImageCard = ({ image, onClick }) => {
           <div className="image-card-overlay">
             {/* Top row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <Badge variant={status === 'COMPLETED' ? 'success' : status === 'FAILED' ? 'danger' : 'warning'}>
-                {status}
-              </Badge>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <Badge variant={status === 'COMPLETED' ? 'success' : status === 'FAILED' ? 'danger' : 'warning'}>
+                  {status}
+                </Badge>
+                {visibility === 'PUBLIC' && (
+                  <Badge variant="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Globe size={12} />
+                    Public
+                  </Badge>
+                )}
+              </div>
               {isFlagged && (
                 <Badge variant="danger" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                   <ShieldAlert size={12} />

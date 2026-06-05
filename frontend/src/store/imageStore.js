@@ -132,6 +132,21 @@ export const useImageStore = create((set, get) => ({
     }
   },
 
+  bulkDeleteImages: async (imageIds) => {
+    set({ isLoading: true, error: null });
+    try {
+      await apiService.bulkDeleteImages(imageIds);
+      set((state) => ({
+        images: state.images.filter((img) => !imageIds.includes(img.imageId)),
+        selectedImage: state.selectedImage && imageIds.includes(state.selectedImage.imageId) ? null : state.selectedImage,
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
   updateImageMetadata: async (imageId, updates) => {
     set({ isLoading: true, error: null });
     try {

@@ -171,8 +171,33 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* subtle shine effect */
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: skewX(-25deg);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+}
+
+.btn:hover::after {
+  left: 150%;
+}
+
+.btn:active {
+  transform: scale(0.96);
 }
 
 .btn-sm {
@@ -188,47 +213,54 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%);
   color: white;
-  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.5);
 }
 .btn-primary:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
-}
-.btn-primary:active {
-  transform: translateY(0);
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .btn-secondary {
-  background: var(--bg-surface-elevated);
-  border-color: var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
   color: var(--text-primary);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 }
 
 .btn-danger {
-  background: var(--danger);
+  background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%);
   color: white;
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
 }
 .btn-danger:hover {
-  background: var(--danger-hover);
-  transform: translateY(-1px);
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .btn-outline {
   background: transparent;
-  border-color: var(--border-color);
+  border-color: var(--primary-light-border);
   color: var(--text-primary);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 .btn-outline:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--text-secondary);
+  background: var(--primary-light);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.2);
 }
 
 .btn-ghost {
@@ -236,8 +268,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-secondary);
 }
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .btn:disabled {
@@ -245,6 +278,9 @@ h1, h2, h3, h4, h5, h6 {
   cursor: not-allowed;
   transform: none !important;
   box-shadow: none !important;
+}
+.btn:disabled::after {
+  display: none;
 }
 
 /* ─── Cards & Containers ────────────────────────────────────────── */

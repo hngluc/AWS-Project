@@ -16,7 +16,7 @@ import { Button } from './components/ui/Button';
 
 function App() {
   const { isAuthenticated, initialize, isLoading, user } = useAuthStore();
-  const { images, publicImages, fetchImages, fetchPublicImages, selectedImage, setSelectedImage } = useImageStore();
+  const { images, publicImages, fetchImages, fetchPublicImages, selectedImage, setSelectedImage, bulkDeleteImages } = useImageStore();
   
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
   const [activeTab, setActiveTab] = useState('gallery'); // 'gallery', 'upload', 'search', 'moderation'
@@ -151,6 +151,7 @@ function App() {
               images={images} 
               onImageClick={setSelectedImage} 
               isLoading={isLoading} 
+              onBulkDelete={bulkDeleteImages}
             />
           </div>
         )}
