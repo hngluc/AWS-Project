@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useImageStore } from '../../store/imageStore';
 import { useAuthStore } from '../../store/authStore';
 import { apiService } from '../../services/api';
+import { useToast } from '../../hooks/useToast';
 import { 
   Camera, 
   Tag as TagIcon, 
-  Eye, 
   Trash2, 
   Download, 
   ShieldAlert, 
@@ -17,16 +17,26 @@ import {
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 
+/**
+ * ImageDetail – responsive image detail panel shown inside a Modal.
+ * Desktop: 2-column grid (image preview | metadata).
+ * Mobile: stacked 1-column layout.
+ *
+ * Uses toast notifications instead of alert() for all user feedback.
+ *
+ * @param {Object} image - Full image data object
+ * @param {Function} onClose - Close the detail modal
+ */
 export const ImageDetail = ({ image, onClose }) => {
   const deleteImage = useImageStore((state) => state.deleteImage);
   const updateImageMetadata = useImageStore((state) => state.updateImageMetadata);
   const currentUser = useAuthStore((state) => state.user);
+  const toast = useToast();
 
   const { 
     imageId, 
     originalFilename, 
     resizedUrl, 
-    mimeType, 
     fileSize, 
     createdAt, 
     status, 
@@ -38,6 +48,7 @@ export const ImageDetail = ({ image, onClose }) => {
   } = image;
 
   const [loadingAction, setLoadingAction] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isOwner = currentUser?.userId === image.userId || currentUser?.role === 'admin';
 
   const formatSize = (bytes) => {
@@ -53,40 +64,52 @@ export const ImageDetail = ({ image, onClose }) => {
     const newVisibility = visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
     try {
       await updateImageMetadata(imageId, { visibility: newVisibility });
+      toast.success(
+        `Image is now ${newVisibility.toLowerCase()}.`,
+        'Visibility Updated'
+      );
     } catch (err) {
-      alert('Failed to update visibility: ' + err.message);
+      toast.error(err.message || 'Failed to update visibility.', 'Update Failed');
     } finally {
       setLoadingAction(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to permanently delete this image? This will clean up all processed files in S3.')) {
-      return;
-    }
     setLoadingAction(true);
     try {
       await deleteImage(imageId);
+      toast.success('Image and all processed files have been permanently deleted.', 'Image Deleted');
       onClose();
     } catch (err) {
-      alert('Failed to delete image: ' + err.message);
+      toast.error(err.message || 'Failed to delete image.', 'Delete Failed');
     } finally {
       setLoadingAction(false);
+      setConfirmDelete(false);
     }
   };
 
   const handleDownload = async () => {
     try {
       const { downloadUrl } = await apiService.getDownloadUrl(imageId);
-      // Open in a new tab to trigger download
       window.open(downloadUrl, '_blank');
+      toast.info('Download started in a new tab.', 'Downloading');
     } catch (err) {
-      alert('Failed to get download URL: ' + err.message);
+      toast.error(err.message || 'Failed to get download URL.', 'Download Failed');
     }
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', color: '#fff', textAlign: 'left' }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+        gap: '2rem',
+        color: '#fff',
+        textAlign: 'left',
+      }}
+      className="image-detail-grid"
+    >
       
       {/* Column 1: Image Preview */}
       <div 
@@ -123,7 +146,7 @@ export const ImageDetail = ({ image, onClose }) => {
               textAlign: 'center'
             }}
           >
-            <ShieldAlert size={42} style={{ color: '#fff', marginBottom: '1rem' }} />
+            <ShieldAlert size={42} style={{ color: '#fff', marginBottom: '1rem' }} aria-hidden="true" />
             <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>Flagged for Moderation</h3>
             <p style={{ fontSize: '0.85rem', color: '#fca5a5', maxWidth: '300px', marginTop: '0.5rem' }}>
               Our AI detected potentially sensitive content. Admin review pending.
@@ -133,25 +156,36 @@ export const ImageDetail = ({ image, onClose }) => {
       </div>
 
       {/* Column 2: Metadata & Details */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: 0 }}>
         
         {/* Title and Visibility */}
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '0.5rem' }}>
+          <h2 style={{
+            fontSize: 'clamp(1.15rem, 2.5vw, 1.5rem)',
+            fontWeight: '800',
+            marginBottom: '0.5rem',
+            wordBreak: 'break-word',
+          }}>
             {originalFilename}
           </h2>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <Badge variant={status === 'COMPLETED' ? 'success' : 'warning'}>
+            <Badge
+              variant={status === 'COMPLETED' ? 'success' : 'warning'}
+              ariaLabel={`Status: ${status}`}
+            >
               {status}
             </Badge>
-            <Badge variant={visibility === 'PUBLIC' ? 'primary' : 'secondary'}>
+            <Badge
+              variant={visibility === 'PUBLIC' ? 'primary' : 'secondary'}
+              ariaLabel={`Visibility: ${visibility}`}
+            >
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                {visibility === 'PUBLIC' ? <Globe size={12} /> : <Lock size={12} />}
+                {visibility === 'PUBLIC' ? <Globe size={12} aria-hidden="true" /> : <Lock size={12} aria-hidden="true" />}
                 {visibility}
               </span>
             </Badge>
             {moderationStatus !== 'SAFE' && (
-              <Badge variant="danger">
+              <Badge variant="danger" ariaLabel={`Moderation: ${moderationStatus}`}>
                 {moderationStatus}
               </Badge>
             )}
@@ -159,13 +193,21 @@ export const ImageDetail = ({ image, onClose }) => {
         </div>
 
         {/* General Info */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '1rem',
+          padding: '1rem',
+          background: 'rgba(255,255,255,0.02)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-color)',
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <Calendar size={16} color="var(--text-muted)" />
+            <Calendar size={16} color="var(--text-muted)" aria-hidden="true" />
             <span>Uploaded: {new Date(createdAt).toLocaleDateString()}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <FileImage size={16} color="var(--text-muted)" />
+            <FileImage size={16} color="var(--text-muted)" aria-hidden="true" />
             <span>Size: {formatSize(fileSize)}</span>
           </div>
         </div>
@@ -173,11 +215,20 @@ export const ImageDetail = ({ image, onClose }) => {
         {/* EXIF Metadata */}
         <div>
           <h4 style={{ fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Camera size={16} />
+            <Camera size={16} aria-hidden="true" />
             Camera & Lens (EXIF)
           </h4>
           {exifData ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '0.5rem',
+              background: 'rgba(255,255,255,0.02)',
+              padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-color)',
+              fontSize: '0.85rem',
+            }}>
               <div><strong style={{ color: 'var(--text-secondary)' }}>Device:</strong> {exifData.camera || 'Unknown'}</div>
               <div><strong style={{ color: 'var(--text-secondary)' }}>Focal Length:</strong> {exifData.focalLength || 'N/A'}</div>
               <div><strong style={{ color: 'var(--text-secondary)' }}>ISO:</strong> {exifData.iso || 'N/A'}</div>
@@ -193,7 +244,7 @@ export const ImageDetail = ({ image, onClose }) => {
         {/* AI Object Tags */}
         <div>
           <h4 style={{ fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <TagIcon size={16} />
+            <TagIcon size={16} aria-hidden="true" />
             AI Detected Objects (Amazon Rekognition)
           </h4>
           {aiTags && aiTags.length > 0 ? (
@@ -228,7 +279,7 @@ export const ImageDetail = ({ image, onClose }) => {
         {moderationLabels && moderationLabels.length > 0 && (
           <div>
             <h4 style={{ fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', color: '#f87171', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <ShieldAlert size={16} />
+              <ShieldAlert size={16} aria-hidden="true" />
               AI Moderation Warnings
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -256,7 +307,14 @@ export const ImageDetail = ({ image, onClose }) => {
         )}
 
         {/* Action Toolbar */}
-        <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{
+          display: 'flex',
+          gap: '0.75rem',
+          marginTop: 'auto',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid var(--border-color)',
+          flexWrap: 'wrap',
+        }}>
           {isOwner && (
             <>
               <Button 
@@ -264,17 +322,51 @@ export const ImageDetail = ({ image, onClose }) => {
                 onClick={handleToggleVisibility} 
                 loading={loadingAction}
                 icon={visibility === 'PUBLIC' ? <Lock size={16} /> : <Globe size={16} />}
+                ariaLabel={`Make this image ${visibility === 'PUBLIC' ? 'private' : 'public'}`}
               >
                 Make {visibility === 'PUBLIC' ? 'Private' : 'Public'}
               </Button>
-              <Button 
-                variant="danger" 
-                onClick={handleDelete} 
-                loading={loadingAction}
-                icon={<Trash2 size={16} />}
-              >
-                Delete
-              </Button>
+
+              {/* Inline Delete Confirmation */}
+              {confirmDelete ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                }}>
+                  <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>Delete permanently?</span>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleDelete}
+                    loading={loadingAction}
+                    ariaLabel="Confirm delete"
+                  >
+                    Yes
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmDelete(false)}
+                    ariaLabel="Cancel delete"
+                  >
+                    No
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  variant="danger" 
+                  onClick={() => setConfirmDelete(true)} 
+                  icon={<Trash2 size={16} />}
+                  ariaLabel="Delete this image"
+                >
+                  Delete
+                </Button>
+              )}
             </>
           )}
           <Button 
@@ -282,12 +374,22 @@ export const ImageDetail = ({ image, onClose }) => {
             onClick={handleDownload} 
             icon={<Download size={16} />}
             style={{ marginLeft: 'auto' }}
+            ariaLabel="Download original image file"
           >
             Download
           </Button>
         </div>
 
       </div>
+
+      {/* Responsive CSS for mobile layout */}
+      <style>{`
+        @media (max-width: 768px) {
+          .image-detail-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

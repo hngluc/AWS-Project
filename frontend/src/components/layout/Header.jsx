@@ -1,7 +1,11 @@
-import React from 'react';
-import { useAuthStore } from '../../store/authStore';
-import { ShieldAlert, Database, Cloud } from 'lucide-react';
 
+import { useAuthStore } from '../../store/authStore';
+import { Database, Cloud } from 'lucide-react';
+
+/**
+ * Header – page title and cloud infrastructure status indicator.
+ * Responsive: hides badge text on mobile, shows icon only.
+ */
 export const Header = ({ title }) => {
   const config = useAuthStore((state) => state.config);
   const isDemo = config?.isDemo;
@@ -15,16 +19,28 @@ export const Header = ({ title }) => {
         marginBottom: '2rem',
         borderBottom: '1px solid var(--border-color)',
         paddingBottom: '1.25rem',
+        gap: '1rem',
+        flexWrap: 'wrap',
       }}
+      role="banner"
     >
-      <div>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', letterSpacing: '-0.02em' }}>
+      <div style={{ minWidth: 0 }}>
+        <h2
+          style={{
+            fontSize: 'clamp(1.25rem, 3vw, 1.75rem)',
+            fontWeight: '800',
+            letterSpacing: '-0.02em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
           {title}
         </h2>
       </div>
 
       {/* Cloud Infrastructure Status Banner */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
         {isDemo ? (
           <div
             style={{
@@ -39,9 +55,11 @@ export const Header = ({ title }) => {
               fontSize: '0.8rem',
               fontWeight: '600',
             }}
+            role="status"
+            aria-label="Running in sandbox mode with local mock data"
           >
-            <Database size={16} />
-            <span>Sandbox Mode (Local Mock)</span>
+            <Database size={16} aria-hidden="true" />
+            <span className="header-badge-text">Sandbox Mode</span>
           </div>
         ) : (
           <div
@@ -57,9 +75,11 @@ export const Header = ({ title }) => {
               fontSize: '0.8rem',
               fontWeight: '600',
             }}
+            role="status"
+            aria-label="Connected to AWS cloud infrastructure"
           >
-            <Cloud size={16} />
-            <span>Connected to AWS</span>
+            <Cloud size={16} aria-hidden="true" />
+            <span className="header-badge-text">Connected to AWS</span>
           </div>
         )}
       </div>
