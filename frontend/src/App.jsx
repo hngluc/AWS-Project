@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from './store/authStore';
 import { useImageStore } from './store/imageStore';
 import { LoginForm } from './components/auth/LoginForm';
@@ -11,11 +11,12 @@ import { ImageSearch } from './components/images/ImageSearch';
 import { ImageDetail } from './components/images/ImageDetail';
 import { ModerationQueue } from './components/images/ModerationQueue';
 import { Modal } from './components/ui/Modal';
-import { RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { ToastContainer } from './components/ui/Toast';
+import { RefreshCw } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
 function App() {
-  const { isAuthenticated, initialize, isLoading, user } = useAuthStore();
+  const { isAuthenticated, initialize, isLoading } = useAuthStore();
   const { images, publicImages, fetchImages, fetchPublicImages, selectedImage, setSelectedImage, bulkDeleteImages } = useImageStore();
   
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
@@ -63,8 +64,21 @@ function App() {
           justifyContent: 'center', 
           background: 'var(--bg-main)' 
         }}
+        role="status"
+        aria-label="Loading application"
       >
-        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '3px solid rgba(124,58,237,0.1)', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
+        <div
+          className="animate-spin"
+          style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(124,58,237,0.1)',
+            borderTopColor: 'var(--primary)',
+            borderRadius: '50%',
+          }}
+          aria-hidden="true"
+        />
+        <span className="sr-only">Loading SmartImage...</span>
       </div>
     );
   }
@@ -72,48 +86,53 @@ function App() {
   // Guest Mode (Login / Signup Screens)
   if (!isAuthenticated) {
     return (
-      <div 
-        style={{ 
-          minHeight: '100vh', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          background: 'var(--bg-main)',
-          padding: '2rem',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Visual Glow Orbs */}
-        <div style={{ position: 'absolute', width: '350px', height: '350px', background: 'var(--primary)', filter: 'blur(120px)', opacity: 0.15, top: '-50px', left: '-50px', borderRadius: '50%' }} />
-        <div style={{ position: 'absolute', width: '300px', height: '300px', background: 'var(--secondary)', filter: 'blur(120px)', opacity: 0.15, bottom: '-50px', right: '-50px', borderRadius: '50%' }} />
+      <>
+        <div 
+          style={{ 
+            minHeight: '100vh', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            background: 'var(--bg-main)',
+            padding: '2rem',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Visual Glow Orbs */}
+          <div style={{ position: 'absolute', width: '350px', height: '350px', background: 'var(--primary)', filter: 'blur(120px)', opacity: 0.15, top: '-50px', left: '-50px', borderRadius: '50%' }} aria-hidden="true" />
+          <div style={{ position: 'absolute', width: '300px', height: '300px', background: 'var(--secondary)', filter: 'blur(120px)', opacity: 0.15, bottom: '-50px', right: '-50px', borderRadius: '50%' }} aria-hidden="true" />
 
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem' }}>
-            <img 
-              src="/logo.png" 
-              alt="SmartImage Logo" 
-              style={{ 
-                width: '48px', 
-                height: '48px', 
-                borderRadius: 'var(--radius-md)', 
-                boxShadow: 'var(--glow-shadow)', 
-                objectFit: 'cover' 
-              }} 
-            />
-            <div style={{ textAlign: 'left' }}>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', margin: 0, color: '#fff' }}>SmartImage</h1>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Serverless Image Vault</span>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem' }}>
+              <img 
+                src="/logo.png" 
+                alt="SmartImage Logo" 
+                style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: 'var(--radius-md)', 
+                  boxShadow: 'var(--glow-shadow)', 
+                  objectFit: 'cover' 
+                }} 
+              />
+              <div style={{ textAlign: 'left' }}>
+                <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', margin: 0, color: '#fff' }}>SmartImage</h1>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Serverless Image Vault</span>
+              </div>
             </div>
-          </div>
 
-          {authMode === 'login' ? (
-            <LoginForm onToggleMode={() => setAuthMode('signup')} />
-          ) : (
-            <SignupForm onToggleMode={() => setAuthMode('login')} />
-          )}
+            {authMode === 'login' ? (
+              <LoginForm onToggleMode={() => setAuthMode('signup')} />
+            ) : (
+              <SignupForm onToggleMode={() => setAuthMode('login')} />
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* Global Toast Notifications */}
+        <ToastContainer />
+      </>
     );
   }
 
@@ -141,7 +160,7 @@ function App() {
         {/* TAB 1: Gallery View */}
         {activeTab === 'gallery' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
                 Manage your uploaded photographs, see automated EXIF extractions, and preview AI labels.
               </p>
@@ -150,6 +169,7 @@ function App() {
                 size="sm"
                 onClick={fetchImages}
                 icon={<RefreshCw size={14} />}
+                ariaLabel="Refresh gallery"
               >
                 Refresh
               </Button>
@@ -167,7 +187,7 @@ function App() {
         {/* TAB 1.5: Community View */}
         {activeTab === 'community' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
                 Discover public photographs shared by the community.
               </p>
@@ -176,6 +196,7 @@ function App() {
                 size="sm"
                 onClick={fetchPublicImages}
                 icon={<RefreshCw size={14} />}
+                ariaLabel="Refresh community gallery"
               >
                 Refresh
               </Button>
@@ -221,6 +242,9 @@ function App() {
         </Modal>
 
       </Layout>
+
+      {/* Global Toast Notifications */}
+      <ToastContainer />
     </ProtectedRoute>
   );
 }

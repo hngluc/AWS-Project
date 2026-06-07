@@ -71,7 +71,7 @@ export const authService = {
   async login(email, password) {
     if (this.isDemoMode()) {
       // Mock Login
-      await new Promise((resolve, reject) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 800));
       const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
       
       // Seed default accounts if empty
