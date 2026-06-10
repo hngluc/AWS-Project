@@ -111,7 +111,6 @@ export const ImageEditor = ({ image, onClose }) => {
       await uploadImage(file);
       
       onClose(); // Close editor
-      // Also might need to trigger a refresh or it happens automatically in store
     } catch (error) {
       console.error("Save failed:", error);
       alert(error.message || "Failed to save edited image.");
