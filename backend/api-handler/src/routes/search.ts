@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { BatchGetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { UserContext, requireAuth } from '../middleware/auth';
 
 // ─── Lazy-loaded client ─────────────────────────────────────────
@@ -74,7 +74,9 @@ export async function handleSearchByTag(
 
   const docClient = await getDocClient();
 
-  // Query GSI1 for all images with this tag
+  // Query GSI1 for all images with this tag.
+  // The index projection is intentionally small, so fetch full records before
+  // enforcing visibility rules.
   const result = await docClient.send(new QueryCommand({
     TableName: IMAGE_TABLE,
     IndexName: 'GSI1-TagIndex',
@@ -86,15 +88,61 @@ export async function handleSearchByTag(
     ExclusiveStartKey: exclusiveStartKey,
   }));
 
-  const images = (result.Items || []).map((item: Record<string, any>) => ({
+  const indexItems = result.Items || [];
+  const keys = indexItems
+    .filter((item: Record<string, any>) => item.PK && item.SK)
+    .map((item: Record<string, any>) => ({ PK: item.PK, SK: item.SK }));
+
+  let fullItems: Record<string, any>[] = [];
+  if (keys.length > 0) {
+    const fullResult = await docClient.send(new BatchGetCommand({
+      RequestItems: {
+        [IMAGE_TABLE]: {
+          Keys: keys,
+          ProjectionExpression: [
+            'imageId', 'userId', 'originalFilename', 'thumbnailKey', 'resizedKey',
+            'mimeType', 'fileSize', 'dimensions', 'exifData', 'aiTags',
+            'moderationStatus', '#status', '#visibility', 'createdAt', 'updatedAt',
+          ].join(', '),
+          ExpressionAttributeNames: {
+            '#status': 'status',
+            '#visibility': 'visibility',
+          },
+        },
+      },
+    }));
+
+    fullItems = fullResult.Responses?.[IMAGE_TABLE] || [];
+  } else {
+    fullItems = indexItems;
+  }
+
+  const visibleItems = fullItems.filter((item: Record<string, any>) => (
+    userContext.isAdmin ||
+    item.userId === userId ||
+    (item.visibility === 'PUBLIC' && item.moderationStatus === 'SAFE')
+  ));
+
+  const images = visibleItems.map((item: Record<string, any>) => ({
     imageId: item.imageId,
     userId: item.userId,
     originalFilename: item.originalFilename,
     thumbnailUrl: item.thumbnailKey
       ? `https://${CLOUDFRONT_DOMAIN}/${item.thumbnailKey}`
       : null,
+    resizedUrl: item.resizedKey
+      ? `https://${CLOUDFRONT_DOMAIN}/${item.resizedKey}`
+      : null,
+    mimeType: item.mimeType,
+    fileSize: item.fileSize,
+    dimensions: item.dimensions || null,
+    exifData: item.exifData || null,
+    aiTags: item.aiTags || [],
     moderationStatus: item.moderationStatus,
+    status: item.status,
+    visibility: item.visibility,
     createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
   }));
 
   let nextCursor: string | null = null;

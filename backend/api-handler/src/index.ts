@@ -4,7 +4,15 @@ import httpRouterHandler from '@middy/http-router';
 import httpErrorHandler from '@middy/http-error-handler';
 import httpCors from '@middy/http-cors';
 import { handleUpload } from './routes/upload';
-import { handleListImages, handleGetImage, handleDeleteImage, handleUpdateImage } from './routes/images';
+import {
+  handleListImages,
+  handleListPublicImages,
+  handleGetImage,
+  handleDeleteImage,
+  handleBulkDeleteImages,
+  handleUpdateImage,
+  handleGetDownloadUrl,
+} from './routes/images';
 import { handleSearchByTag } from './routes/search';
 import { handleListModeration, handleModerateImage } from './routes/admin';
 import { extractUserContext } from './middleware/auth';
@@ -34,6 +42,26 @@ const routes = [
   },
   {
     method: 'GET' as const,
+    path: '/v1/images/public',
+    handler: wrapRoute(handleListPublicImages),
+  },
+  {
+    method: 'DELETE' as const,
+    path: '/v1/images/bulk',
+    handler: wrapRoute(handleBulkDeleteImages),
+  },
+  {
+    method: 'GET' as const,
+    path: '/v1/images/search',
+    handler: wrapRoute(handleSearchByTag),
+  },
+  {
+    method: 'GET' as const,
+    path: '/v1/images/{imageId}/download',
+    handler: wrapRoute(handleGetDownloadUrl),
+  },
+  {
+    method: 'GET' as const,
     path: '/v1/images/{imageId}',
     handler: wrapRoute(handleGetImage),
   },
@@ -46,11 +74,6 @@ const routes = [
     method: 'PATCH' as const,
     path: '/v1/images/{imageId}',
     handler: wrapRoute(handleUpdateImage),
-  },
-  {
-    method: 'GET' as const,
-    path: '/v1/images/search',
-    handler: wrapRoute(handleSearchByTag),
   },
   {
     method: 'GET' as const,

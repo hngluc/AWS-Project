@@ -394,7 +394,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
           )}
           <Button
             variant="outline"
-            onClick={onEdit}
+            onClick={() => onEdit && onEdit(image)}
             icon={<Edit2 size={16} />}
             ariaLabel="Edit image"
           >
@@ -402,11 +402,11 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
           </Button>
           <Button
             variant="outline"
-            onClick={onShaderLab}
+            onClick={() => onShaderLab && onShaderLab(image)}
             icon={<Camera size={16} />}
             ariaLabel="Shader Lab"
           >
-            Filter Lab
+            {t('common.filterLab') || 'Filter Lab'}
           </Button>
           <Button
             variant="secondary"

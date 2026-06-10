@@ -117,6 +117,7 @@ export class ApiStack extends cdk.Stack {
     // IAM: API Handler — Least Privilege
     // Can: create presigned URLs (PutObject), delete objects, CRUD DynamoDB
     rawBucket.grantPut(this.apiHandlerFunction);     // For presigned URL generation
+    rawBucket.grantRead(this.apiHandlerFunction);    // For presigned download URLs
     rawBucket.grantDelete(this.apiHandlerFunction);   // For image deletion
     processedBucket.grantDelete(this.apiHandlerFunction); // Delete processed files too
     imageTable.grantReadWriteData(this.apiHandlerFunction);
@@ -311,6 +312,12 @@ export class ApiStack extends cdk.Stack {
 
     const presignedUrl = images.addResource('presigned-url');
     presignedUrl.addMethod('POST', apiIntegration, authMethodOptions); // Get upload URL
+
+    const publicImages = images.addResource('public');
+    publicImages.addMethod('GET', apiIntegration, authMethodOptions); // Community gallery
+
+    const bulk = images.addResource('bulk');
+    bulk.addMethod('DELETE', apiIntegration, authMethodOptions); // Bulk delete
 
     const search = images.addResource('search');
     search.addMethod('GET', apiIntegration, authMethodOptions);   // Search by tag

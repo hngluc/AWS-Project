@@ -33,6 +33,7 @@ export const translations = {
     'common.delete': 'Delete',
     'common.download': 'Download',
     'common.edit': 'Edit',
+    'common.filterLab': 'Filter Lab',
     'common.loading': 'Loading...',
     
     // Image Grid & Search
@@ -110,6 +111,7 @@ export const translations = {
     'common.delete': 'Xóa',
     'common.download': 'Tải xuống',
     'common.edit': 'Chỉnh sửa',
+    'common.filterLab': 'Bộ lọc ảnh',
     'common.loading': 'Đang tải...',
     
     // Image Grid & Search
