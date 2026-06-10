@@ -331,12 +331,12 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
 
         {/* Action Toolbar */}
         <div style={{
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
           gap: '0.75rem',
           marginTop: 'auto',
           paddingTop: '1.5rem',
           borderTop: '1px solid var(--border-color)',
-          flexWrap: 'wrap',
         }}>
           {isOwner && (
             <>
@@ -346,6 +346,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
                 loading={loadingAction}
                 icon={visibility === 'PUBLIC' ? <Lock size={16} /> : <Globe size={16} />}
                 ariaLabel={`Make this image ${visibility === 'PUBLIC' ? 'private' : 'public'}`}
+                style={{ width: '100%', justifyContent: 'center', minHeight: '46px' }}
               >
                 {visibility === 'PUBLIC' ? t('detail.makePrivate') : t('detail.makePublic')}
               </Button>
@@ -360,6 +361,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
                   padding: '0.35rem 0.75rem',
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid rgba(239, 68, 68, 0.2)',
+                  minHeight: '46px',
                 }}>
                   <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>{t('detail.confirmDelete')}</span>
                   <Button
@@ -386,6 +388,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
                   onClick={() => setConfirmDelete(true)}
                   icon={<Trash2 size={16} />}
                   ariaLabel="Delete this image"
+                  style={{ width: '100%', justifyContent: 'center', minHeight: '46px' }}
                 >
                   {t('common.delete')}
                 </Button>
@@ -397,6 +400,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
             onClick={() => onEdit && onEdit(image)}
             icon={<Edit2 size={16} />}
             ariaLabel="Edit image"
+            style={{ width: '100%', justifyContent: 'center', minHeight: '46px' }}
           >
             {t('common.edit')}
           </Button>
@@ -405,6 +409,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
             onClick={() => onShaderLab && onShaderLab(image)}
             icon={<Camera size={16} />}
             ariaLabel="Shader Lab"
+            style={{ width: '100%', justifyContent: 'center', minHeight: '46px' }}
           >
             {t('common.filterLab') || 'Filter Lab'}
           </Button>
@@ -412,7 +417,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
             variant="secondary"
             onClick={handleDownload}
             icon={<Download size={16} />}
-            style={{ marginLeft: 'auto' }}
+            style={{ width: '100%', justifyContent: 'center', minHeight: '46px', gridColumn: '1 / -1' }}
             ariaLabel="Download original image file"
           >
             {t('common.download')}
