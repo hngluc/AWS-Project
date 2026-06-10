@@ -14,8 +14,10 @@ import { Modal } from './components/ui/Modal';
 import { ToastContainer } from './components/ui/Toast';
 import { RefreshCw } from 'lucide-react';
 import { Button } from './components/ui/Button';
+import { useTranslation } from './hooks/useTranslation';
 
 function App() {
+  const { t } = useTranslation();
   const { isAuthenticated, initialize, isLoading } = useAuthStore();
   const { images, publicImages, fetchImages, fetchPublicImages, selectedImage, setSelectedImage, bulkDeleteImages } = useImageStore();
   
@@ -140,16 +142,16 @@ function App() {
   const getTabTitle = () => {
     switch (activeTab) {
       case 'upload':
-        return 'Upload Raw Images';
+        return t('nav.upload');
       case 'search':
-        return 'AI Tag Search Portal';
+        return t('nav.search');
       case 'moderation':
-        return 'Admin Moderation Queue';
+        return t('nav.admin');
       case 'community':
-        return 'Community Gallery';
+        return t('nav.community');
       case 'gallery':
       default:
-        return 'My Vault Gallery';
+        return t('nav.gallery');
     }
   };
 
@@ -162,7 +164,7 @@ function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                Manage your uploaded photographs, see automated EXIF extractions, and preview AI labels.
+                {t('desc.gallery')}
               </p>
               <Button 
                 variant="secondary" 
@@ -189,7 +191,7 @@ function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                Discover public photographs shared by the community.
+                {t('desc.community')}
               </p>
               <Button 
                 variant="secondary" 
