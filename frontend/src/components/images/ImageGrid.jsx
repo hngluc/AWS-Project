@@ -4,6 +4,7 @@ import { SkeletonCard } from '../ui/SkeletonCard';
 import { Image as ImageIcon, Trash2, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useToast } from '../../hooks/useToast';
+import { useTranslation } from '../../hooks/useTranslation';
 
 /**
  * ImageGrid – responsive image gallery grid with skeleton loading,
@@ -17,6 +18,7 @@ import { useToast } from '../../hooks/useToast';
 export const ImageGrid = ({ images, onImageClick, isLoading, onBulkDelete }) => {
   const [selectedIds, setSelectedIds] = useState([]);
   const toast = useToast();
+  const { t } = useTranslation();
 
   const handleToggleSelect = (imageId) => {
     setSelectedIds((prev) =>
@@ -30,12 +32,12 @@ export const ImageGrid = ({ images, onImageClick, isLoading, onBulkDelete }) => 
     try {
       await onBulkDelete(selectedIds);
       toast.success(
-        `${selectedIds.length} image${selectedIds.length > 1 ? 's' : ''} deleted successfully.`,
-        'Bulk Delete'
+        `${selectedIds.length} ${t('toast.bulkDeleteSuccessMsg')}`,
+        t('toast.bulkDeleteTitle')
       );
       setSelectedIds([]);
     } catch (err) {
-      toast.error(err.message || 'Failed to delete images.', 'Delete Failed');
+      toast.error(err.message || t('toast.bulkDeleteFailMsg'), t('toast.deleteFailTitle'));
     }
   };
 
@@ -83,9 +85,9 @@ export const ImageGrid = ({ images, onImageClick, isLoading, onBulkDelete }) => 
         >
           <ImageIcon size={32} color="var(--text-muted)" />
         </div>
-        <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>No Images Found</h3>
+        <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{t('grid.empty').split('.')[0]}</h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '320px', textAlign: 'center' }}>
-          Upload your first raw image to trigger the Serverless processing pipeline.
+          {t('grid.empty').split('.')[1]}
         </p>
       </div>
     );
@@ -123,7 +125,7 @@ export const ImageGrid = ({ images, onImageClick, isLoading, onBulkDelete }) => 
               icon={<X size={14} />}
               ariaLabel="Clear selection"
             >
-              Clear
+              {t('grid.cancelSelect')}
             </Button>
           </div>
           {onBulkDelete && (
@@ -134,7 +136,7 @@ export const ImageGrid = ({ images, onImageClick, isLoading, onBulkDelete }) => 
               icon={<Trash2 size={14} />}
               ariaLabel={`Delete ${selectedIds.length} selected images`}
             >
-              Delete Selected
+              {t('grid.deleteSelected')}
             </Button>
           )}
         </div>

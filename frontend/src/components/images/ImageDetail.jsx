@@ -3,6 +3,7 @@ import { useImageStore } from '../../store/imageStore';
 import { useAuthStore } from '../../store/authStore';
 import { apiService } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
+import { useTranslation } from '../../hooks/useTranslation';
 import { 
   Camera, 
   Tag as TagIcon, 
@@ -49,6 +50,8 @@ export const ImageDetail = ({ image, onClose }) => {
     moderationLabels
   } = image;
 
+  const { t } = useTranslation();
+
   const [loadingAction, setLoadingAction] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -82,10 +85,10 @@ export const ImageDetail = ({ image, onClose }) => {
     setLoadingAction(true);
     try {
       await deleteImage(imageId);
-      toast.success('Image and all processed files have been permanently deleted.', 'Image Deleted');
+      toast.success(t('toast.deleteSuccessMsg'), t('toast.deleteSuccessTitle'));
       onClose();
     } catch (err) {
-      toast.error(err.message || 'Failed to delete image.', 'Delete Failed');
+      toast.error(err.message || t('toast.deleteFailMsg'), t('toast.deleteFailTitle'));
     } finally {
       setLoadingAction(false);
       setConfirmDelete(false);
@@ -150,9 +153,9 @@ export const ImageDetail = ({ image, onClose }) => {
             }}
           >
             <ShieldAlert size={42} style={{ color: '#fff', marginBottom: '1rem' }} aria-hidden="true" />
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>Flagged for Moderation</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>{t('detail.flaggedTitle')}</h3>
             <p style={{ fontSize: '0.85rem', color: '#fca5a5', maxWidth: '300px', marginTop: '0.5rem' }}>
-              Our AI detected potentially sensitive content. Admin review pending.
+              {t('detail.flaggedMsg')}
             </p>
           </div>
         )}
@@ -207,11 +210,11 @@ export const ImageDetail = ({ image, onClose }) => {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <Calendar size={16} color="var(--text-muted)" aria-hidden="true" />
-            <span>Uploaded: {new Date(createdAt).toLocaleDateString()}</span>
+            <span>{t('detail.uploaded')}: {new Date(createdAt).toLocaleDateString()}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <FileImage size={16} color="var(--text-muted)" aria-hidden="true" />
-            <span>Size: {formatSize(fileSize)}</span>
+            <span>{t('detail.size')}: {formatSize(fileSize)}</span>
           </div>
         </div>
 
@@ -219,7 +222,7 @@ export const ImageDetail = ({ image, onClose }) => {
         <div>
           <h4 style={{ fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Camera size={16} aria-hidden="true" />
-            Camera & Lens (EXIF)
+            {t('detail.camera')}
           </h4>
           {exifData ? (
             <div style={{
@@ -232,14 +235,14 @@ export const ImageDetail = ({ image, onClose }) => {
               border: '1px solid var(--border-color)',
               fontSize: '0.85rem',
             }}>
-              <div><strong style={{ color: 'var(--text-secondary)' }}>Device:</strong> {exifData.camera || 'Unknown'}</div>
-              <div><strong style={{ color: 'var(--text-secondary)' }}>Focal Length:</strong> {exifData.focalLength || 'N/A'}</div>
-              <div><strong style={{ color: 'var(--text-secondary)' }}>ISO:</strong> {exifData.iso || 'N/A'}</div>
-              <div><strong style={{ color: 'var(--text-secondary)' }}>Location:</strong> {exifData.gps ? `${exifData.gps.lat.toFixed(3)}, ${exifData.gps.lng.toFixed(3)}` : 'No GPS Data'}</div>
+              <div><strong style={{ color: 'var(--text-secondary)' }}>{t('detail.device')}:</strong> {exifData.camera || 'Unknown'}</div>
+              <div><strong style={{ color: 'var(--text-secondary)' }}>{t('detail.focalLength')}:</strong> {exifData.focalLength || 'N/A'}</div>
+              <div><strong style={{ color: 'var(--text-secondary)' }}>{t('detail.iso')}:</strong> {exifData.iso || 'N/A'}</div>
+              <div><strong style={{ color: 'var(--text-secondary)' }}>{t('detail.location')}:</strong> {exifData.gps ? `${exifData.gps.lat.toFixed(3)}, ${exifData.gps.lng.toFixed(3)}` : 'No GPS Data'}</div>
             </div>
           ) : (
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              {status === 'COMPLETED' ? 'No EXIF metadata found in this image.' : 'EXIF extraction in progress...'}
+              {status === 'COMPLETED' ? t('detail.noExif') : t('detail.exifProgress')}
             </span>
           )}
         </div>
@@ -248,7 +251,7 @@ export const ImageDetail = ({ image, onClose }) => {
         <div>
           <h4 style={{ fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <TagIcon size={16} aria-hidden="true" />
-            AI Detected Objects (Amazon Rekognition)
+            {t('detail.aiTags')}
           </h4>
           {aiTags && aiTags.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -273,7 +276,7 @@ export const ImageDetail = ({ image, onClose }) => {
             </div>
           ) : (
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              {status === 'COMPLETED' ? 'No tags detected.' : 'Analyzing image objects...'}
+              {status === 'COMPLETED' ? t('detail.noTags') : t('detail.analyzing')}
             </span>
           )}
         </div>
@@ -283,7 +286,7 @@ export const ImageDetail = ({ image, onClose }) => {
           <div>
             <h4 style={{ fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', color: '#f87171', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <ShieldAlert size={16} aria-hidden="true" />
-              AI Moderation Warnings
+              {t('detail.warnings')}
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {moderationLabels.map((lbl) => (
@@ -327,7 +330,7 @@ export const ImageDetail = ({ image, onClose }) => {
                 icon={visibility === 'PUBLIC' ? <Lock size={16} /> : <Globe size={16} />}
                 ariaLabel={`Make this image ${visibility === 'PUBLIC' ? 'private' : 'public'}`}
               >
-                Make {visibility === 'PUBLIC' ? 'Private' : 'Public'}
+                {visibility === 'PUBLIC' ? t('detail.makePrivate') : t('detail.makePublic')}
               </Button>
 
               {/* Inline Delete Confirmation */}
@@ -341,7 +344,7 @@ export const ImageDetail = ({ image, onClose }) => {
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid rgba(239, 68, 68, 0.2)',
                 }}>
-                  <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>Delete permanently?</span>
+                  <span style={{ fontSize: '0.8rem', color: '#fca5a5', fontWeight: '600' }}>{t('detail.confirmDelete')}</span>
                   <Button
                     variant="danger"
                     size="sm"
@@ -349,7 +352,7 @@ export const ImageDetail = ({ image, onClose }) => {
                     loading={loadingAction}
                     ariaLabel="Confirm delete"
                   >
-                    Yes
+                    {t('detail.yes')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -357,7 +360,7 @@ export const ImageDetail = ({ image, onClose }) => {
                     onClick={() => setConfirmDelete(false)}
                     ariaLabel="Cancel delete"
                   >
-                    No
+                    {t('detail.no')}
                   </Button>
                 </div>
               ) : (
@@ -367,7 +370,7 @@ export const ImageDetail = ({ image, onClose }) => {
                   icon={<Trash2 size={16} />}
                   ariaLabel="Delete this image"
                 >
-                  Delete
+                  {t('common.delete')}
                 </Button>
               )}
             </>
@@ -378,7 +381,7 @@ export const ImageDetail = ({ image, onClose }) => {
             icon={<Edit2 size={16} />}
             ariaLabel="Edit image"
           >
-            Edit
+            {t('common.edit')}
           </Button>
           <Button 
             variant="secondary" 
@@ -387,7 +390,7 @@ export const ImageDetail = ({ image, onClose }) => {
             style={{ marginLeft: 'auto' }}
             ariaLabel="Download original image file"
           >
-            Download
+            {t('common.download')}
           </Button>
         </div>
 

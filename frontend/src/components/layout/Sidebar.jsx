@@ -10,6 +10,7 @@ import {
   Globe
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
+import { useTranslation } from '../../hooks/useTranslation';
 
 /**
  * Sidebar – main navigation panel.
@@ -23,18 +24,19 @@ import { Badge } from '../ui/Badge';
 export const Sidebar = ({ activeTab, onTabChange, isOpen = false }) => {
   const { user, logout } = useAuthStore();
   const isAdmin = user?.role === 'admin';
+  const { t } = useTranslation();
 
   const menuItems = [
-    { id: 'gallery', label: 'My Gallery', icon: <ImageIcon size={20} /> },
-    { id: 'community', label: 'Community Gallery', icon: <Globe size={20} /> },
-    { id: 'upload', label: 'Upload Images', icon: <UploadCloud size={20} /> },
-    { id: 'search', label: 'AI Tag Search', icon: <Search size={20} /> },
+    { id: 'gallery', label: t('nav.gallery'), icon: <ImageIcon size={20} /> },
+    { id: 'community', label: t('nav.community'), icon: <Globe size={20} /> },
+    { id: 'upload', label: t('nav.upload'), icon: <UploadCloud size={20} /> },
+    { id: 'search', label: t('nav.search'), icon: <Search size={20} /> },
   ];
 
   if (isAdmin) {
     menuItems.push({ 
       id: 'moderation', 
-      label: 'Moderation Queue', 
+      label: t('nav.admin'), 
       icon: <ShieldAlert size={20} /> 
     });
   }
@@ -187,7 +189,7 @@ export const Sidebar = ({ activeTab, onTabChange, isOpen = false }) => {
           }}
         >
           <LogOut size={16} aria-hidden="true" />
-          Sign Out
+          {t('nav.logout')}
         </button>
       </div>
     </aside>

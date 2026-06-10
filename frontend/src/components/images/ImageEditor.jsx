@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { RotateCcw, RotateCw, FlipHorizontal, FlipVertical, Save, X, RefreshCcw } from 'lucide-react';
 import { useImageStore } from '../../store/imageStore';
+import { useTranslation } from '../../hooks/useTranslation';
 
 export const ImageEditor = ({ image, onClose }) => {
+  const { t } = useTranslation();
   const canvasRef = useRef(null);
   const [imgObj, setImgObj] = useState(null);
   
@@ -131,10 +133,10 @@ export const ImageEditor = ({ image, onClose }) => {
         padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)',
         background: 'var(--bg-surface)'
       }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Edit Image</h2>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{t('editor.title')}</h2>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <Button variant="outline" onClick={onClose} disabled={isSaving} icon={<X size={16} />}>Cancel</Button>
-          <Button variant="primary" onClick={handleSave} loading={isSaving} icon={<Save size={16} />}>Save as Copy</Button>
+          <Button variant="outline" onClick={onClose} disabled={isSaving} icon={<X size={16} />}>{t('common.cancel')}</Button>
+          <Button variant="primary" onClick={handleSave} loading={isSaving} icon={<Save size={16} />}>{t('editor.saveCopy')}</Button>
         </div>
       </div>
 
@@ -166,15 +168,15 @@ export const ImageEditor = ({ image, onClose }) => {
         }}>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Adjustments</h3>
-            <Button variant="ghost" size="sm" onClick={reset} icon={<RefreshCcw size={14}/>}>Reset</Button>
+            <h3 style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>{t('editor.adjustments')}</h3>
+            <Button variant="ghost" size="sm" onClick={reset} icon={<RefreshCcw size={14}/>}>{t('editor.reset')}</Button>
           </div>
 
           {/* Filters */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                <span>Brightness</span>
+                <span>{t('editor.brightness')}</span>
                 <span>{settings.brightness}%</span>
               </div>
               <input 
@@ -186,7 +188,7 @@ export const ImageEditor = ({ image, onClose }) => {
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                <span>Contrast</span>
+                <span>{t('editor.contrast')}</span>
                 <span>{settings.contrast}%</span>
               </div>
               <input 
@@ -198,7 +200,7 @@ export const ImageEditor = ({ image, onClose }) => {
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                <span>Saturation</span>
+                <span>{t('editor.saturation')}</span>
                 <span>{settings.saturation}%</span>
               </div>
               <input 
@@ -213,12 +215,12 @@ export const ImageEditor = ({ image, onClose }) => {
 
           {/* Transform Controls */}
           <div>
-            <h3 style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Transform</h3>
+            <h3 style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{t('editor.transform')}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <Button variant="outline" size="sm" onClick={() => rotate(-90)} icon={<RotateCcw size={16}/>}>-90°</Button>
               <Button variant="outline" size="sm" onClick={() => rotate(90)} icon={<RotateCw size={16}/>}>+90°</Button>
-              <Button variant="outline" size="sm" onClick={() => flip('flipH')} icon={<FlipHorizontal size={16}/>}>Flip H</Button>
-              <Button variant="outline" size="sm" onClick={() => flip('flipV')} icon={<FlipVertical size={16}/>}>Flip V</Button>
+              <Button variant="outline" size="sm" onClick={() => flip('flipH')} icon={<FlipHorizontal size={16}/>}>{t('editor.flipH')}</Button>
+              <Button variant="outline" size="sm" onClick={() => flip('flipV')} icon={<FlipVertical size={16}/>}>{t('editor.flipV')}</Button>
             </div>
           </div>
 
