@@ -19,9 +19,13 @@ cdk.context.json
 .env.local
 .env.*.local
 
-# IDE
+# IDE / AI Assistants
 .vscode/
 .idea/
+.claude/
+.codegraph/
+.cursor/
+.gemini/
 *.swp
 *.swo
 

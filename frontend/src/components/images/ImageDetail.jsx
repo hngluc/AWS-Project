@@ -12,10 +12,12 @@ import {
   Calendar, 
   FileImage,
   Globe,
-  Lock
+  Lock,
+  Edit2
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { ImageEditor } from './ImageEditor';
 
 /**
  * ImageDetail – responsive image detail panel shown inside a Modal.
@@ -49,6 +51,7 @@ export const ImageDetail = ({ image, onClose }) => {
 
   const [loadingAction, setLoadingAction] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const isOwner = currentUser?.userId === image.userId || currentUser?.role === 'admin';
 
   const formatSize = (bytes) => {
@@ -370,6 +373,14 @@ export const ImageDetail = ({ image, onClose }) => {
             </>
           )}
           <Button 
+            variant="outline" 
+            onClick={() => setIsEditing(true)} 
+            icon={<Edit2 size={16} />}
+            ariaLabel="Edit image"
+          >
+            Edit
+          </Button>
+          <Button 
             variant="secondary" 
             onClick={handleDownload} 
             icon={<Download size={16} />}
@@ -390,6 +401,10 @@ export const ImageDetail = ({ image, onClose }) => {
           }
         }
       `}</style>
+
+      {isEditing && (
+        <ImageEditor image={image} onClose={() => setIsEditing(false)} />
+      )}
     </div>
   );
 };
