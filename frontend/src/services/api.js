@@ -26,6 +26,28 @@ async function request(path, options = {}) {
   return response.json();
 }
 
+function unwrapResponsePayload(payload) {
+  if (payload && typeof payload === 'object' && 'success' in payload) {
+    if (payload.success === false) {
+      throw new Error(payload.message || 'API request failed');
+    }
+    return payload.data ?? payload;
+  }
+
+  return payload;
+}
+
+function unwrapCollectionResponse(payload) {
+  const data = unwrapResponsePayload(payload) || {};
+  const meta = payload?.meta || {};
+
+  return {
+    ...data,
+    nextCursor: meta.nextCursor ?? data.nextCursor ?? null,
+    totalCount: meta.totalCount ?? meta.count ?? data.totalCount ?? data.images?.length ?? 0,
+  };
+}
+
 // ─── Mock Engine for Demo Mode ────────────────────────────────────
 const mockDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -169,10 +191,10 @@ export const apiService = {
       };
     }
 
-    return request('/v1/images/presigned-url', {
+    return unwrapResponsePayload(await request('/v1/images/presigned-url', {
       method: 'POST',
       body: JSON.stringify({ filename, contentType, fileSize }),
-    });
+    }));
   },
 
   // --- Upload to S3 (handles actual S3 or Mock upload) ---
@@ -303,7 +325,7 @@ export const apiService = {
 
     let url = `/v1/images?limit=${limit}`;
     if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
-    return request(url);
+    return unwrapCollectionResponse(await request(url));
   },
 
   // --- List Public Images ---
@@ -321,7 +343,7 @@ export const apiService = {
 
     let url = `/v1/images/public?limit=${limit}`;
     if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
-    return request(url);
+    return unwrapCollectionResponse(await request(url));
   },
 
   // --- Get Image Detail ---
@@ -334,7 +356,7 @@ export const apiService = {
       return image;
     }
 
-    return request(`/v1/images/${imageId}`);
+    return unwrapResponsePayload(await request(`/v1/images/${imageId}`));
   },
 
   // --- Update Image visibility / metadata ---
@@ -350,10 +372,10 @@ export const apiService = {
       return allImages[index];
     }
 
-    return request(`/v1/images/${imageId}`, {
+    return unwrapResponsePayload(await request(`/v1/images/${imageId}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
-    });
+    }));
   },
 
   // --- Delete Image ---
@@ -366,9 +388,9 @@ export const apiService = {
       return { success: true };
     }
 
-    return request(`/v1/images/${imageId}`, {
+    return unwrapResponsePayload(await request(`/v1/images/${imageId}`, {
       method: 'DELETE',
-    });
+    }));
   },
 
   // --- Bulk Delete Images ---
@@ -381,10 +403,10 @@ export const apiService = {
       return { success: true, deletedCount: imageIds.length };
     }
 
-    return request(`/v1/images/bulk`, {
+    return unwrapResponsePayload(await request(`/v1/images/bulk`, {
       method: 'DELETE',
       body: JSON.stringify({ imageIds }),
-    });
+    }));
   },
 
   // --- Search by Tag ---
@@ -409,7 +431,7 @@ export const apiService = {
       };
     }
 
-    return request(`/v1/images/search?tag=${encodeURIComponent(tag)}`);
+    return unwrapCollectionResponse(await request(`/v1/images/search?tag=${encodeURIComponent(tag)}`));
   },
 
   // --- Get Download URL (for actual private raw file downloading) ---
@@ -420,7 +442,7 @@ export const apiService = {
       return { downloadUrl: image.thumbnailUrl };
     }
 
-    return request(`/v1/images/${imageId}/download`);
+    return unwrapResponsePayload(await request(`/v1/images/${imageId}/download`));
   },
 
   // --- Admin Moderation Queue ---
@@ -433,7 +455,7 @@ export const apiService = {
       return { images: flagged };
     }
 
-    return request('/v1/admin/moderation');
+    return unwrapCollectionResponse(await request('/v1/admin/moderation'));
   },
 
   // --- Moderate Action (Approve / Reject) ---
@@ -457,9 +479,9 @@ export const apiService = {
       return { success: true };
     }
 
-    return request(`/v1/admin/moderation/${imageId}`, {
+    return unwrapResponsePayload(await request(`/v1/admin/moderation/${imageId}`, {
       method: 'POST',
       body: JSON.stringify({ action }),
-    });
+    }));
   },
 };

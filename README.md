@@ -1,120 +1,236 @@
-# 🖼️ Smart Image Platform
+# Smart Image Platform
 
-A **production-ready**, fully serverless image storage and processing platform built on AWS.
+[Tieng Viet](./README.vi.md)
+
+Smart Image Platform is a serverless image storage, processing, and AI analysis application built on AWS. It includes a React frontend, AWS Lambda backend services, and AWS CDK infrastructure.
+
+The platform lets users upload images directly to S3, process thumbnails and resized images automatically, analyze content with Amazon Rekognition, search by AI tags, moderate flagged images, publish images to a community gallery, bulk delete images, and download original files through short-lived signed URLs.
+
+## Main Features
+
+- Secure direct upload with S3 presigned PUT URLs.
+- Automatic thumbnail and resized image generation with Sharp.
+- EXIF extraction during image processing.
+- AI object and scene labeling with Amazon Rekognition.
+- Content moderation with an admin review queue.
+- Personal gallery, public community gallery, and tag search.
+- Private/public visibility controls per image.
+- Bulk delete for selected images.
+- Original image download through presigned S3 GetObject URLs.
+- Cognito authentication with user/admin role support.
+- CloudFront delivery for processed image assets.
+- Infrastructure as Code with AWS CDK v2.
+- Demo mode in the frontend when Cognito/API environment variables are not configured.
 
 ## Architecture
 
-- **Serverless & Event-Driven** — Zero server management, automatic scaling
-- **AWS Services**: S3, Lambda, API Gateway, DynamoDB, CloudFront, Rekognition, Cognito, IAM
-- **Infrastructure as Code** — AWS CDK v2 (TypeScript)
-
-## Features
-
-- 📤 **Secure Upload** — S3 Presigned URLs for direct client-to-S3 upload (up to 25MB)
-- 🖼️ **Auto Processing** — Thumbnail (200x200) and resized (1920x1080) generation in WebP
-- 🤖 **AI Analysis** — Automatic object detection, scene labeling, and content moderation via Rekognition
-- 🔍 **Tag Search** — Search images by AI-generated tags via DynamoDB GSI
-- 🛡️ **Content Moderation** — Auto-flag inappropriate content with admin review queue
-- 🔐 **Auth** — Cognito User Pool with JWT, MFA support, admin/user roles
-- 🌐 **CDN Delivery** — CloudFront with OAC for low-latency, cached image delivery
-- 📊 **Monitoring** — CloudWatch dashboards, alarms, X-Ray tracing
-- 🔒 **Security** — IAM least privilege, S3 Block Public Access, SSE encryption, OWASP mitigations
+```mermaid
+flowchart LR
+  User["User"] --> FE["React Frontend"]
+  FE --> Cognito["Amazon Cognito"]
+  FE --> API["API Gateway"]
+  API --> ApiLambda["API Handler Lambda"]
+  ApiLambda --> RawS3["Raw S3 Bucket"]
+  ApiLambda --> DDB["DynamoDB"]
+  FE --> RawS3
+  RawS3 --> Processor["Image Processor Lambda"]
+  Processor --> ProcessedS3["Processed S3 Bucket"]
+  Processor --> DDB
+  DDB --> Analyzer["AI Analyzer Lambda"]
+  Analyzer --> Rekognition["Amazon Rekognition"]
+  Analyzer --> DDB
+  FE --> CloudFront["CloudFront CDN"]
+  CloudFront --> ProcessedS3
+```
 
 ## Project Structure
 
-```
+```text
 smart-image-platform/
-├── infrastructure/          # AWS CDK stacks (IaC)
-│   ├── lib/stacks/
-│   │   ├── storage-stack    # S3 + CloudFront + OAC
-│   │   ├── database-stack   # DynamoDB tables + GSIs
-│   │   ├── auth-stack       # Cognito User Pool
-│   │   ├── api-stack        # API Gateway + Lambda functions
-│   │   └── monitoring-stack # CloudWatch alarms + dashboard
-│   └── bin/app.ts           # CDK entry point
 ├── backend/
-│   ├── shared/              # Shared utilities, types, clients
-│   ├── api-handler/         # REST API Lambda (CRUD, presigned URLs)
-│   ├── image-processor/     # S3-triggered Lambda (resize, EXIF)
-│   ├── ai-analyzer/         # Rekognition Lambda (labels, moderation)
-│   └── authorizer/          # JWT validation Lambda
-└── frontend/                # (Phase 2 — React SPA)
+│   ├── api-handler/       # REST API Lambda: image CRUD, search, moderation, signed URLs
+│   ├── image-processor/   # S3-triggered Lambda: resize, thumbnail, EXIF
+│   ├── ai-analyzer/       # DynamoDB Stream Lambda: Rekognition labels and moderation
+│   ├── authorizer/        # JWT authorizer support
+│   └── shared/            # Shared AWS clients and utilities
+├── frontend/              # React + Vite single page app
+├── infrastructure/        # AWS CDK stacks
+│   ├── bin/app.ts         # CDK app entry point
+│   └── lib/stacks/        # Auth, storage, database, API, monitoring stacks
+├── package.json           # npm workspaces root
+└── tsconfig.base.json     # Shared TypeScript config
 ```
+
+## AWS Services
+
+- Amazon S3 for raw and processed image storage.
+- Amazon CloudFront for CDN delivery.
+- Amazon API Gateway for the REST API.
+- AWS Lambda for API, processing, analysis, and authorization logic.
+- Amazon DynamoDB for image metadata, quotas, tag search, and moderation state.
+- Amazon Rekognition for image labels and moderation labels.
+- Amazon Cognito for authentication.
+- Amazon CloudWatch and X-Ray for logs, metrics, tracing, dashboards, and alarms.
 
 ## Prerequisites
 
-- **Node.js** >= 20.x
-- **AWS CLI** configured with appropriate credentials
-- **AWS CDK CLI**: `npm install -g aws-cdk`
-- **AWS Account** bootstrapped for CDK: `cdk bootstrap aws://ACCOUNT-ID/ap-southeast-1`
+- Node.js 20 or newer.
+- npm 10 or newer.
+- AWS CLI configured with credentials for the target account.
+- AWS CDK v2 CLI.
+- A bootstrapped CDK environment in the target AWS account and region.
 
-## Quick Start
+Default region used by the project is `ap-southeast-1`.
 
-### 1. Install Dependencies
+## Installation
 
 ```bash
 cd smart-image-platform
 npm install
 ```
 
-### 2. Bootstrap CDK (first time only)
+## Local Frontend Development
+
+Run the React app:
 
 ```bash
-cdk bootstrap aws://YOUR_ACCOUNT_ID/ap-southeast-1
+npm run --workspace=frontend dev
 ```
 
-### 3. Deploy to AWS
+If these variables are not configured, the frontend falls back to demo mode:
+
+```env
+VITE_API_URL=https://your-api-id.execute-api.ap-southeast-1.amazonaws.com/dev
+VITE_USER_POOL_ID=ap-southeast-1_xxxxxxxx
+VITE_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+VITE_AWS_REGION=ap-southeast-1
+```
+
+Demo mode uses browser storage and seeded accounts:
+
+```text
+user@example.com / Password123!
+admin@example.com / Password123!
+```
+
+Note: demo mode stores mock image data in the browser. Large images can exceed browser storage quota. Real AWS mode uploads images to S3 and does not have this localStorage limitation.
+
+## Build and Test
+
+Build all workspaces:
 
 ```bash
-# Deploy all stacks to staging
+npm run build
+```
+
+Run available tests:
+
+```bash
+npm test
+```
+
+Run frontend lint:
+
+```bash
+npm run --workspace=frontend lint
+```
+
+Build individual workspaces:
+
+```bash
+npm run --workspace=@smart-image/api-handler build
+npm run --workspace=@smart-image/image-processor build
+npm run --workspace=@smart-image/ai-analyzer build
+npm run --workspace=infrastructure build
+npm run --workspace=frontend build
+```
+
+## Deploy
+
+Bootstrap CDK once per account/region:
+
+```bash
+npx cdk bootstrap aws://ACCOUNT_ID/ap-southeast-1
+```
+
+Deploy staging:
+
+```bash
 cd infrastructure
-npx cdk deploy --all -c environment=staging
-
-# Deploy to production
-npx cdk deploy --all -c environment=production
+npm run deploy:staging
 ```
 
-### 4. Verify Deployment
+Deploy production:
 
-After deployment, CDK will output:
-- API Gateway URL
-- CloudFront domain
-- Cognito User Pool ID
-- S3 bucket names
+```bash
+cd infrastructure
+npm run deploy:production
+```
+
+Useful CDK commands:
+
+```bash
+npm run --workspace=infrastructure synth
+npm run --workspace=infrastructure diff
+npm run --workspace=infrastructure deploy
+```
+
+After deployment, copy the API Gateway URL, Cognito User Pool ID, Cognito Client ID, and AWS region into the frontend environment variables.
 
 ## API Endpoints
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /v1/images/presigned-url | JWT | Get upload URL |
-| GET | /v1/images | JWT | List images (paginated) |
-| GET | /v1/images/{id} | JWT | Image details + AI tags |
-| DELETE | /v1/images/{id} | JWT | Delete image |
-| PATCH | /v1/images/{id} | JWT | Update visibility |
-| GET | /v1/images/search?tag=X | JWT | Search by AI tag |
-| GET | /v1/admin/moderation | Admin | Flagged images queue |
-| POST | /v1/admin/moderation/{id} | Admin | Approve/reject |
+All image and admin endpoints require a Cognito JWT in the `Authorization: Bearer <token>` header.
 
-## Security
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/v1/images/presigned-url` | Create image metadata and return a presigned S3 upload URL. |
+| `GET` | `/v1/images` | List images owned by the authenticated user. |
+| `GET` | `/v1/images/public` | List public, safe, completed images for the community gallery. |
+| `GET` | `/v1/images/search?tag=TagName` | Search visible images by AI-generated tag. |
+| `GET` | `/v1/images/{imageId}` | Get image details, AI tags, EXIF data, and status. |
+| `PATCH` | `/v1/images/{imageId}` | Update image metadata such as visibility. |
+| `DELETE` | `/v1/images/{imageId}` | Delete one image and related S3 objects. |
+| `DELETE` | `/v1/images/bulk` | Delete multiple owned images. |
+| `GET` | `/v1/images/{imageId}/download` | Return a short-lived signed URL for the original file. |
+| `GET` | `/v1/admin/moderation` | List images in the moderation queue. Admin only. |
+| `POST` | `/v1/admin/moderation/{imageId}` | Approve or reject a flagged image. Admin only. |
 
-- All S3 buckets: Block Public Access, SSE encryption, SSL enforced
-- API Gateway: Cognito JWT auth, rate limiting, request validation
-- Lambda: IAM least privilege per function
-- CloudFront: OAC (SigV4 signed requests to S3), HTTPS only
-- Input validation: Magic bytes file type check, filename sanitization
+## Image Processing Flow
 
-## Cost Estimate (Staging)
+1. The frontend requests `/v1/images/presigned-url`.
+2. The API Handler creates a DynamoDB record with `UPLOADING` state and returns a signed S3 URL.
+3. The frontend uploads the raw file directly to the raw S3 bucket.
+4. An S3 object-created event triggers the Image Processor Lambda.
+5. The processor creates thumbnail/resized assets, extracts metadata, writes processed files to S3, and updates DynamoDB.
+6. DynamoDB Streams trigger the AI Analyzer Lambda.
+7. The analyzer calls Rekognition, stores AI tags and moderation labels, and updates final image status.
+8. The frontend reads metadata through API Gateway and displays images through CloudFront URLs.
 
-| Service | Est. Monthly Cost |
-|---------|-------------------|
-| Lambda (light usage) | ~$0.50 |
-| API Gateway | ~$1.00 |
-| DynamoDB (on-demand) | ~$0.50 |
-| S3 (10GB stored) | ~$0.25 |
-| CloudFront | ~$1.00 |
-| Rekognition | ~$1.00/1000 images |
-| Cognito (< 50K MAU) | Free |
-| **Total** | **~$4-5/month** |
+## Data Model Notes
+
+The main DynamoDB table uses a single-table design:
+
+```text
+PK = USER#<userId>
+SK = IMG#<timestamp>#<imageId>
+```
+
+Indexes:
+
+- `GSI1-TagIndex` supports tag-based search.
+- `GSI2-ModerationIndex` supports moderation queue lookups.
+
+The current public gallery endpoint uses a DynamoDB scan filtered by `visibility`, `moderationStatus`, and `status`. This is acceptable for small datasets. For production-scale public galleries, add a dedicated GSI for public/safe/completed images.
+
+## Security Notes
+
+- S3 buckets block public access and enforce encryption.
+- Processed assets are delivered through CloudFront.
+- Upload and download operations use short-lived signed URLs.
+- API routes require Cognito authentication.
+- Admin moderation routes check the admin role in the backend.
+- Search results are filtered to avoid exposing private images owned by other users.
+- Lambda permissions are scoped to the resources required by each function.
 
 ## License
 
