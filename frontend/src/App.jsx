@@ -9,6 +9,8 @@ import { ImageGrid } from './components/images/ImageGrid';
 import { ImageUploader } from './components/images/ImageUploader';
 import { ImageSearch } from './components/images/ImageSearch';
 import { ImageDetail } from './components/images/ImageDetail';
+import { ImageEditor } from './components/images/ImageEditor';
+import { ShaderEditor } from './components/images/ShaderEditor';
 import { ModerationQueue } from './components/images/ModerationQueue';
 import { Modal } from './components/ui/Modal';
 import { ToastContainer } from './components/ui/Toast';
@@ -25,6 +27,8 @@ function App() {
   
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
   const [activeTab, setActiveTab] = useState('gallery'); // 'gallery', 'upload', 'search', 'moderation'
+  const [editingImage, setEditingImage] = useState(null);
+  const [shaderImage, setShaderImage] = useState(null);
 
   // Initialize Auth
   useEffect(() => {
@@ -246,9 +250,26 @@ function App() {
             <ImageDetail 
               image={selectedImage} 
               onClose={() => setSelectedImage(null)} 
+              onEdit={() => setEditingImage(selectedImage)}
+              onShaderLab={() => setShaderImage(selectedImage)}
             />
           )}
         </Modal>
+
+        {/* Root-level Editors to escape Modal stacking context (prevents overlapping issues) */}
+        {editingImage && (
+          <ImageEditor 
+            image={editingImage} 
+            onClose={() => setEditingImage(null)} 
+          />
+        )}
+
+        {shaderImage && (
+          <ShaderEditor 
+            image={shaderImage} 
+            onClose={() => setShaderImage(null)} 
+          />
+        )}
 
       </Layout>
 

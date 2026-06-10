@@ -4,13 +4,13 @@ import { useAuthStore } from '../../store/authStore';
 import { apiService } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 import { useTranslation } from '../../hooks/useTranslation';
-import { 
-  Camera, 
-  Tag as TagIcon, 
-  Trash2, 
-  Download, 
-  ShieldAlert, 
-  Calendar, 
+import {
+  Camera,
+  Tag as TagIcon,
+  Trash2,
+  Download,
+  ShieldAlert,
+  Calendar,
   FileImage,
   Globe,
   Lock,
@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { ImageEditor } from './ImageEditor';
 
 /**
  * ImageDetail – responsive image detail panel shown inside a Modal.
@@ -30,22 +29,22 @@ import { ImageEditor } from './ImageEditor';
  * @param {Object} image - Full image data object
  * @param {Function} onClose - Close the detail modal
  */
-export const ImageDetail = ({ image, onClose }) => {
+export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
   const deleteImage = useImageStore((state) => state.deleteImage);
   const updateImageMetadata = useImageStore((state) => state.updateImageMetadata);
   const currentUser = useAuthStore((state) => state.user);
   const toast = useToast();
 
-  const { 
-    imageId, 
-    originalFilename, 
-    resizedUrl, 
-    fileSize, 
-    createdAt, 
-    status, 
-    visibility, 
-    moderationStatus, 
-    aiTags, 
+  const {
+    imageId,
+    originalFilename,
+    resizedUrl,
+    fileSize,
+    createdAt,
+    status,
+    visibility,
+    moderationStatus,
+    aiTags,
     exifData,
     moderationLabels
   } = image;
@@ -54,7 +53,6 @@ export const ImageDetail = ({ image, onClose }) => {
 
   const [loadingAction, setLoadingAction] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const isOwner = currentUser?.userId === image.userId || currentUser?.role === 'admin';
 
   const formatSize = (bytes) => {
@@ -135,37 +133,37 @@ export const ImageDetail = ({ image, onClose }) => {
       }}
       className="image-detail-grid"
     >
-      
+
       {/* Column 1: Image Preview */}
-      <div 
-        style={{ 
-          background: 'var(--bg-main)', 
-          borderRadius: 'var(--radius-md)', 
-          overflow: 'hidden', 
-          display: 'flex', 
-          alignItems: 'center', 
+      <div
+        style={{
+          background: 'var(--bg-main)',
+          borderRadius: 'var(--radius-md)',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
           maxHeight: '500px',
           border: '1px solid var(--border-color)',
           position: 'relative'
         }}
       >
-        <img 
-          src={resizedUrl} 
-          alt={originalFilename} 
-          style={{ width: '100%', height: '100%', objectFit: 'contain', maxHeight: '500px' }} 
+        <img
+          src={resizedUrl}
+          alt={originalFilename}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', maxHeight: '500px' }}
         />
-        
+
         {moderationStatus === 'FLAGGED' && (
-          <div 
-            style={{ 
-              position: 'absolute', 
-              inset: 0, 
-              background: 'rgba(239, 68, 68, 0.45)', 
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(239, 68, 68, 0.45)',
               backdropFilter: 'blur(10px)',
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
               justifyContent: 'center',
               padding: '1.5rem',
               textAlign: 'center'
@@ -182,7 +180,7 @@ export const ImageDetail = ({ image, onClose }) => {
 
       {/* Column 2: Metadata & Details */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: 0 }}>
-        
+
         {/* Title and Visibility */}
         <div>
           <h2 style={{
@@ -275,7 +273,7 @@ export const ImageDetail = ({ image, onClose }) => {
           {aiTags && aiTags.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {aiTags.map((tag) => (
-                <div 
+                <div
                   key={tag.name}
                   style={{
                     background: 'rgba(255,255,255,0.05)',
@@ -309,7 +307,7 @@ export const ImageDetail = ({ image, onClose }) => {
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {moderationLabels.map((lbl) => (
-                <div 
+                <div
                   key={lbl.name}
                   style={{
                     background: 'rgba(239, 68, 68, 0.1)',
@@ -342,9 +340,9 @@ export const ImageDetail = ({ image, onClose }) => {
         }}>
           {isOwner && (
             <>
-              <Button 
-                variant="outline" 
-                onClick={handleToggleVisibility} 
+              <Button
+                variant="outline"
+                onClick={handleToggleVisibility}
                 loading={loadingAction}
                 icon={visibility === 'PUBLIC' ? <Lock size={16} /> : <Globe size={16} />}
                 ariaLabel={`Make this image ${visibility === 'PUBLIC' ? 'private' : 'public'}`}
@@ -383,9 +381,9 @@ export const ImageDetail = ({ image, onClose }) => {
                   </Button>
                 </div>
               ) : (
-                <Button 
-                  variant="danger" 
-                  onClick={() => setConfirmDelete(true)} 
+                <Button
+                  variant="danger"
+                  onClick={() => setConfirmDelete(true)}
                   icon={<Trash2 size={16} />}
                   ariaLabel="Delete this image"
                 >
@@ -394,17 +392,25 @@ export const ImageDetail = ({ image, onClose }) => {
               )}
             </>
           )}
-          <Button 
-            variant="outline" 
-            onClick={() => setIsEditing(true)} 
+          <Button
+            variant="outline"
+            onClick={onEdit}
             icon={<Edit2 size={16} />}
             ariaLabel="Edit image"
           >
             {t('common.edit')}
           </Button>
-          <Button 
-            variant="secondary" 
-            onClick={handleDownload} 
+          <Button
+            variant="outline"
+            onClick={onShaderLab}
+            icon={<Camera size={16} />}
+            ariaLabel="Shader Lab"
+          >
+            Filter Lab
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleDownload}
             icon={<Download size={16} />}
             style={{ marginLeft: 'auto' }}
             ariaLabel="Download original image file"
@@ -423,10 +429,6 @@ export const ImageDetail = ({ image, onClose }) => {
           }
         }
       `}</style>
-
-      {isEditing && (
-        <ImageEditor image={image} onClose={() => setIsEditing(false)} />
-      )}
     </div>
   );
 };
