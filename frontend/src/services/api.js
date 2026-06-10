@@ -42,13 +42,44 @@ const MOCK_MODERATION = [
 ];
 
 function getMockImages(userId) {
-  const allImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
-  // Filter by userId or return all if admin
+  let allImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
+  if (allImages.length === 0) {
+    allImages = [
+      {
+        imageId: 'img_seed_1',
+        userId: userId || 'user_mock_id',
+        originalKey: 'users/mock/original/img_seed_1_sunset.jpg',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+        resizedUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+        originalFilename: 'sunset_beach.jpg',
+        mimeType: 'image/jpeg',
+        fileSize: 102450,
+        dimensions: { width: 1200, height: 800 },
+        status: 'COMPLETED',
+        moderationStatus: 'SAFE',
+        visibility: 'PUBLIC',
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        aiTags: [
+          { name: 'Ocean', confidence: 98.5 },
+          { name: 'Sunset', confidence: 95.2 },
+          { name: 'Beach', confidence: 91.0 }
+        ],
+        exifData: {
+          camera: 'Fujifilm X-T5',
+          focalLength: '35mm',
+          iso: 200,
+          gps: { lat: 21.0285, lng: 105.8542 }
+        },
+        moderationLabels: []
+      }
+    ];
+    saveMockImages(allImages);
+  }
   const session = JSON.parse(localStorage.getItem('mock_session') || '{}');
   if (session.role === 'admin') {
     return allImages;
   }
-  return allImages.filter((img) => img.userId === userId);
+  return allImages.filter((img) => img.userId === userId || img.userId === 'user_mock_id');
 }
 
 function saveMockImages(images) {
