@@ -122,13 +122,6 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab }) => {
           borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
           display: 'flex',
-          alignItems: 'center', 
-      < div
-        style={{
-          background: 'rgba(0,0,0,0.3)',
-          borderRadius: 'var(--radius-md)',
-          overflow: 'hidden',
-          display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           maxHeight: '500px',
