@@ -98,8 +98,27 @@ export const ImageDetail = ({ image, onClose }) => {
   const handleDownload = async () => {
     try {
       const { downloadUrl } = await apiService.getDownloadUrl(imageId);
-      window.open(downloadUrl, '_blank');
-      toast.info('Download started in a new tab.', 'Downloading');
+      
+      try {
+        // Fetch the file to bypass cross-origin "open in new tab" behavior
+        const response = await fetch(downloadUrl);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = originalFilename || `image_${imageId}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (e) {
+        // Fallback if fetch fails (e.g. CORS issue)
+        window.open(downloadUrl, '_blank');
+      }
+      
+      toast.success(t('toast.downloadSuccessMsg') || 'Image download started...', t('toast.downloadSuccessTitle') || 'Downloading');
     } catch (err) {
       toast.error(err.message || 'Failed to get download URL.', 'Download Failed');
     }
