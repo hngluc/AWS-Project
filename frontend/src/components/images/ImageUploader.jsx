@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useImageStore } from '../../store/imageStore';
 import { useToast } from '../../hooks/useToast';
+import { useTranslation } from '../../hooks/useTranslation';
 import { UploadCloud, AlertTriangle, Loader, X, FileImage } from 'lucide-react';
 
 /**
@@ -16,6 +17,7 @@ export const ImageUploader = () => {
   const cancelUpload = useImageStore((state) => state.cancelUpload);
   const uploadingFiles = useImageStore((state) => state.uploadingFiles);
   const toast = useToast();
+  const { t } = useTranslation();
 
   const [isDragging, setIsDragging] = useState(false);
   const [errors, setErrors] = useState([]);
@@ -78,18 +80,18 @@ export const ImageUploader = () => {
     // Show summary toast
     if (successCount > 0 && failCount === 0) {
       toast.success(
-        `${successCount} image${successCount > 1 ? 's' : ''} uploaded and queued for AI processing.`,
-        'Upload Complete'
+        t('toast.uploadSuccessMsg', { count: successCount }),
+        t('toast.uploadSuccessTitle')
       );
     } else if (successCount > 0 && failCount > 0) {
       toast.warning(
-        `${successCount} uploaded, ${failCount} failed. Check errors below.`,
-        'Partial Upload'
+        t('toast.uploadPartialMsg', { success: successCount, fail: failCount }),
+        t('toast.uploadPartialTitle')
       );
     } else if (failCount > 0 && successCount === 0) {
       toast.error(
-        `All ${failCount} file${failCount > 1 ? 's' : ''} failed validation.`,
-        'Upload Failed'
+        t('toast.uploadFailMsg', { fail: failCount }),
+        t('toast.uploadFailTitle')
       );
     }
   };

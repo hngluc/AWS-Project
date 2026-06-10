@@ -116,8 +116,8 @@ export const Modal = ({ isOpen, onClose, children, title = '' }) => {
           width: '100%',
           position: 'relative',
           padding: '2rem',
-          border: '1px solid rgba(255,255,255,0.1)',
-          background: '#161821',
+          border: '1px solid var(--glass-border)',
+          background: 'var(--bg-surface)',
         }}
       >
         {/* Header */}
@@ -127,13 +127,13 @@ export const Modal = ({ isOpen, onClose, children, title = '' }) => {
             justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: '1.5rem',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            borderBottom: '1px solid var(--border-color)',
             paddingBottom: '1rem',
           }}
         >
           <h3
             id={titleId}
-            style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}
+            style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}
           >
             {title}
           </h3>
@@ -141,9 +141,9 @@ export const Modal = ({ isOpen, onClose, children, title = '' }) => {
             onClick={onClose}
             aria-label="Close dialog"
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              color: '#9ca3af',
+              background: 'transparent',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               fontSize: '1rem',
               padding: '0.4rem',
@@ -157,14 +157,14 @@ export const Modal = ({ isOpen, onClose, children, title = '' }) => {
               height: '36px',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#fff';
-              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'var(--danger-light)';
+              e.currentTarget.style.borderColor = 'var(--danger)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#9ca3af';
-              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'var(--border-color)';
             }}
           >
             <X size={18} />

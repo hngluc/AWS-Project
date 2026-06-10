@@ -884,9 +884,9 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-radius: var(--radius-md);
-  background: #1e2030;
+  background: var(--bg-surface-elevated);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   animation: toastSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   position: relative;
   overflow: hidden;
