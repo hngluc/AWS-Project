@@ -58,63 +58,68 @@ function saveMockImages(images) {
 // Simulate backend processing pipeline
 function runMockProcessing(imageId, userId, imageFile) {
   setTimeout(async () => {
-    const images = JSON.parse(localStorage.getItem('mock_images') || '[]');
-    const imgIndex = images.findIndex((img) => img.imageId === imageId);
-    if (imgIndex === -1) return;
+    try {
+      const images = JSON.parse(localStorage.getItem('mock_images') || '[]');
+      const imgIndex = images.findIndex((img) => img.imageId === imageId);
+      if (imgIndex === -1) return;
 
-    // Transition 1: PROCESSING
-    images[imgIndex].status = 'PROCESSING';
-    // Generate mock EXIF data
-    const cameras = ['iPhone 15 Pro', 'Fujifilm X-T5', 'Sony A7 IV', 'Canon EOS R5'];
-    images[imgIndex].exifData = {
-      camera: cameras[Math.floor(Math.random() * cameras.length)],
-      focalLength: `${Math.floor(Math.random() * 50) + 18}mm`,
-      iso: [100, 200, 400, 800, 1600][Math.floor(Math.random() * 5)],
-      gps: { lat: 21.0285, lng: 105.8542 } // Hanoi coordinates
-    };
-    saveMockImages(images);
+      // Transition 1: PROCESSING
+      images[imgIndex].status = 'PROCESSING';
+      // Generate mock EXIF data
+      const cameras = ['iPhone 15 Pro', 'Fujifilm X-T5', 'Sony A7 IV', 'Canon EOS R5'];
+      images[imgIndex].exifData = {
+        camera: cameras[Math.floor(Math.random() * cameras.length)],
+        focalLength: `${Math.floor(Math.random() * 50) + 18}mm`,
+        iso: [100, 200, 400, 800, 1600][Math.floor(Math.random() * 5)],
+        gps: { lat: 21.0285, lng: 105.8542 } // Hanoi coordinates
+      };
+      
+      try { saveMockImages(images); } catch(e) {}
 
-    // Broadcast change
-    window.dispatchEvent(new CustomEvent('mock-image-updated', { detail: { imageId } }));
+      // Broadcast change
+      window.dispatchEvent(new CustomEvent('mock-image-updated', { detail: { imageId } }));
 
-    // Wait another 1.5s for AI analysis
-    await mockDelay(1500);
+      // Wait another 1.5s for AI analysis
+      await mockDelay(1500);
 
-    const latestImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
-    const index = latestImages.findIndex((img) => img.imageId === imageId);
-    if (index === -1) return;
+      const latestImages = JSON.parse(localStorage.getItem('mock_images') || '[]');
+      const index = latestImages.findIndex((img) => img.imageId === imageId);
+      if (index === -1) return;
 
-    // Detect if "unsafe" tag is present in name/type for demonstration
-    const isUnsafe = imageFile.name.toLowerCase().includes('unsafe') ||
-      imageFile.name.toLowerCase().includes('nude') ||
-      imageFile.name.toLowerCase().includes('blood');
+      // Detect if "unsafe" tag is present in name/type for demonstration
+      const isUnsafe = imageFile.name.toLowerCase().includes('unsafe') ||
+        imageFile.name.toLowerCase().includes('nude') ||
+        imageFile.name.toLowerCase().includes('blood');
 
-    // Generate random AI tags
-    const numTags = 3 + Math.floor(Math.random() * 3);
-    const tags = [];
-    while (tags.length < numTags) {
-      const tag = MOCK_TAGS[Math.floor(Math.random() * MOCK_TAGS.length)];
-      if (!tags.find(t => t.name === tag)) {
-        tags.push({ name: tag, confidence: parseFloat((85 + Math.random() * 14).toFixed(1)) });
+      // Generate random AI tags
+      const numTags = 3 + Math.floor(Math.random() * 3);
+      const tags = [];
+      while (tags.length < numTags) {
+        const tag = MOCK_TAGS[Math.floor(Math.random() * MOCK_TAGS.length)];
+        if (!tags.find(t => t.name === tag)) {
+          tags.push({ name: tag, confidence: parseFloat((85 + Math.random() * 14).toFixed(1)) });
+        }
       }
+
+      latestImages[index].aiTags = tags;
+
+      if (isUnsafe) {
+        latestImages[index].moderationStatus = 'FLAGGED';
+        latestImages[index].status = 'COMPLETED'; // processed, but flagged
+        latestImages[index].moderationLabels = [
+          MOCK_MODERATION[Math.floor(Math.random() * MOCK_MODERATION.length)]
+        ];
+      } else {
+        latestImages[index].moderationStatus = 'SAFE';
+        latestImages[index].status = 'COMPLETED';
+        latestImages[index].moderationLabels = [];
+      }
+
+      try { saveMockImages(latestImages); } catch(e) {}
+      window.dispatchEvent(new CustomEvent('mock-image-updated', { detail: { imageId } }));
+    } catch (error) {
+      console.error('runMockProcessing failed:', error);
     }
-
-    latestImages[index].aiTags = tags;
-
-    if (isUnsafe) {
-      latestImages[index].moderationStatus = 'FLAGGED';
-      latestImages[index].status = 'COMPLETED'; // processed, but flagged
-      latestImages[index].moderationLabels = [
-        MOCK_MODERATION[Math.floor(Math.random() * MOCK_MODERATION.length)]
-      ];
-    } else {
-      latestImages[index].moderationStatus = 'SAFE';
-      latestImages[index].status = 'COMPLETED';
-      latestImages[index].moderationLabels = [];
-    }
-
-    saveMockImages(latestImages);
-    window.dispatchEvent(new CustomEvent('mock-image-updated', { detail: { imageId } }));
   }, 1500);
 }
 
@@ -165,40 +170,55 @@ export const apiService = {
       reader.readAsDataURL(file);
 
       return new Promise((resolve, reject) => {
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        
         reader.onloadend = async () => {
-          if (signal?.aborted) {
-            reject(new Error('AbortError'));
-            return;
+          try {
+            if (signal?.aborted) {
+              reject(new Error('AbortError'));
+              return;
+            }
+
+            const imageUrl = reader.result;
+
+            const newImage = {
+              imageId,
+              userId: session.userId,
+              originalKey: fields.key,
+              thumbnailUrl: imageUrl,
+              resizedUrl: imageUrl,
+              originalFilename: file.name,
+              mimeType: file.type,
+              fileSize: file.size,
+              dimensions: { width: 1920, height: 1080 },
+              status: 'UPLOADING',
+              moderationStatus: 'SAFE',
+              visibility: 'PRIVATE',
+              createdAt: new Date().toISOString(),
+              aiTags: [],
+              exifData: null,
+            };
+
+            const images = JSON.parse(localStorage.getItem('mock_images') || '[]');
+            images.unshift(newImage);
+            
+            try {
+              saveMockImages(images);
+            } catch (storageError) {
+              console.warn('LocalStorage quota exceeded or save failed. Trimming older images...', storageError);
+              // If we hit the 5MB limit, keep only the latest 3 images to free up space
+              const trimmedImages = images.slice(0, 3);
+              saveMockImages(trimmedImages);
+            }
+
+            // Trigger local background processing
+            runMockProcessing(imageId, session.userId, file);
+
+            resolve({ imageId });
+          } catch (err) {
+            console.error('Mock upload processing error:', err);
+            reject(err);
           }
-
-          const imageUrl = reader.result;
-
-          const newImage = {
-            imageId,
-            userId: session.userId,
-            originalKey: fields.key,
-            thumbnailUrl: imageUrl,
-            resizedUrl: imageUrl,
-            originalFilename: file.name,
-            mimeType: file.type,
-            fileSize: file.size,
-            dimensions: { width: 1920, height: 1080 },
-            status: 'UPLOADING',
-            moderationStatus: 'SAFE',
-            visibility: 'PRIVATE',
-            createdAt: new Date().toISOString(),
-            aiTags: [],
-            exifData: null,
-          };
-
-          const images = JSON.parse(localStorage.getItem('mock_images') || '[]');
-          images.unshift(newImage);
-          saveMockImages(images);
-
-          // Trigger local background processing
-          runMockProcessing(imageId, session.userId, file);
-
-          resolve({ imageId });
         };
       });
     }

@@ -111,7 +111,7 @@ export const ImageDetail = ({ image, onClose }) => {
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
         gap: '2rem',
-        color: '#fff',
+        color: 'var(--text-primary)',
         textAlign: 'left',
       }}
       className="image-detail-grid"
@@ -120,7 +120,7 @@ export const ImageDetail = ({ image, onClose }) => {
       {/* Column 1: Image Preview */}
       <div 
         style={{ 
-          background: 'rgba(0,0,0,0.3)', 
+          background: 'var(--bg-main)', 
           borderRadius: 'var(--radius-md)', 
           overflow: 'hidden', 
           display: 'flex', 
@@ -204,7 +204,7 @@ export const ImageDetail = ({ image, onClose }) => {
           gridTemplateColumns: '1fr 1fr',
           gap: '1rem',
           padding: '1rem',
-          background: 'rgba(255,255,255,0.02)',
+          background: 'var(--bg-main)',
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-color)',
         }}>
@@ -229,7 +229,7 @@ export const ImageDetail = ({ image, onClose }) => {
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: '0.5rem',
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--bg-main)',
               padding: '0.75rem 1rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)',
