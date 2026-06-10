@@ -15,9 +15,11 @@ import { ToastContainer } from './components/ui/Toast';
 import { RefreshCw } from 'lucide-react';
 import { Button } from './components/ui/Button';
 import { useTranslation } from './hooks/useTranslation';
+import { useThemeStore } from './store/themeStore';
 
 function App() {
   const { t } = useTranslation();
+  const { theme } = useThemeStore();
   const { isAuthenticated, initialize, isLoading } = useAuthStore();
   const { images, publicImages, fetchImages, fetchPublicImages, selectedImage, setSelectedImage, bulkDeleteImages } = useImageStore();
   
@@ -28,6 +30,11 @@ function App() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Apply Theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // Fetch Images on Login or Tab Switch
   useEffect(() => {

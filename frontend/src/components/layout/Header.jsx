@@ -1,7 +1,7 @@
 
 import { useAuthStore } from '../../store/authStore';
 import { Database, Cloud } from 'lucide-react';
-import { LanguageSwitcher } from '../ui/LanguageSwitcher';
+import { UserMenu } from '../ui/UserMenu';
 
 /**
  * Header – page title and cloud infrastructure status indicator.
@@ -42,7 +42,7 @@ export const Header = ({ title }) => {
 
       {/* Cloud Infrastructure Status Banner */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-        <LanguageSwitcher />
+        <UserMenu />
         
         {isDemo ? (
           <div
