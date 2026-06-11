@@ -32,8 +32,8 @@ async function getDocClient() {
 const IMAGE_TABLE = process.env.IMAGE_TABLE_NAME!;
 const RAW_BUCKET = process.env.RAW_BUCKET_NAME!;
 const PROCESSED_BUCKET = process.env.PROCESSED_BUCKET_NAME!;
-const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN!;
 const DOWNLOAD_URL_EXPIRY = parseInt(process.env.PRESIGNED_URL_EXPIRY || '900', 10);
+const IMAGE_URL_EXPIRY = 3600; // 1 hour for thumbnail/resized URLs
 
 // ─── Response Helpers ───────────────────────────────────────────
 const headers = {
@@ -49,19 +49,36 @@ function jsonResponse(statusCode: number, body: unknown): APIGatewayProxyResult 
 
 /**
  * Transforms a DynamoDB image item into a client-facing response.
- * Converts S3 keys to CloudFront URLs.
+ * Uses S3 presigned URLs for secure, time-limited access to processed images.
  */
-function toImageResponse(item: Record<string, any>) {
+async function toImageResponse(item: Record<string, any>) {
+  const s3Client = await getS3Client();
+
+  let thumbnailUrl: string | null = null;
+  let resizedUrl: string | null = null;
+
+  if (item.thumbnailKey) {
+    thumbnailUrl = await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({ Bucket: PROCESSED_BUCKET, Key: item.thumbnailKey }),
+      { expiresIn: IMAGE_URL_EXPIRY },
+    );
+  }
+
+  if (item.resizedKey) {
+    resizedUrl = await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({ Bucket: PROCESSED_BUCKET, Key: item.resizedKey }),
+      { expiresIn: IMAGE_URL_EXPIRY },
+    );
+  }
+
   return {
     imageId: item.imageId,
     userId: item.userId,
     originalFilename: item.originalFilename,
-    thumbnailUrl: item.thumbnailKey
-      ? `https://${CLOUDFRONT_DOMAIN}/${item.thumbnailKey}`
-      : null,
-    resizedUrl: item.resizedKey
-      ? `https://${CLOUDFRONT_DOMAIN}/${item.resizedKey}`
-      : null,
+    thumbnailUrl,
+    resizedUrl,
     mimeType: item.mimeType,
     fileSize: item.fileSize,
     dimensions: item.dimensions || null,
@@ -85,7 +102,6 @@ async function findUserImage(docClient: any, userId: string, imageId: string) {
       ':skPrefix': 'IMG#',
       ':imageId': imageId,
     },
-    Limit: 1,
   }));
 
   return result.Items?.[0] || null;
@@ -136,14 +152,14 @@ export async function handleListImages(
     ExclusiveStartKey: exclusiveStartKey,
     // Only fetch needed attributes (reduces RCU)
     ProjectionExpression: [
-      'imageId', 'originalFilename', 'thumbnailKey', 'resizedKey',
+      'imageId', 'userId', 'originalFilename', 'thumbnailKey', 'resizedKey',
       'mimeType', 'fileSize', 'dimensions', 'exifData', 'aiTags',
       'moderationStatus', '#status', 'visibility', 'createdAt', 'updatedAt',
     ].join(', '),
     ExpressionAttributeNames: { '#status': 'status' },
   }));
 
-  const images = (result.Items || []).map(toImageResponse);
+  const images = await Promise.all((result.Items || []).map(toImageResponse));
 
   // Encode next cursor
   let nextCursor: string | null = null;
@@ -208,7 +224,7 @@ export async function handleListPublicImages(
     ExclusiveStartKey: exclusiveStartKey,
   }));
 
-  const images = (result.Items || []).map(toImageResponse);
+  const images = await Promise.all((result.Items || []).map(toImageResponse));
   let nextCursor: string | null = null;
   if (result.LastEvaluatedKey) {
     nextCursor = Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64');
@@ -290,7 +306,6 @@ export async function handleDeleteImage(
       ':skPrefix': 'IMG#',
       ':imageId': imageId,
     },
-    Limit: 1,
   }));
 
   if (!findResult.Items || findResult.Items.length === 0) {
@@ -538,7 +553,6 @@ export async function handleUpdateImage(
       ':skPrefix': 'IMG#',
       ':imageId': imageId,
     },
-    Limit: 1,
   }));
 
   if (!findResult.Items || findResult.Items.length === 0) {

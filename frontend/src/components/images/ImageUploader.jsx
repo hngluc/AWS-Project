@@ -235,15 +235,15 @@ export const ImageUploader = () => {
 
         <div>
           <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>
-            {isDragging ? 'Drop files to upload' : 'Drag & drop raw files here'}
+            {isDragging ? t('upload.dropzoneActive') : t('upload.dropzoneInactive')}
           </h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            or click to browse from device (up to 25MB)
+            {t('upload.browse')}
           </p>
         </div>
 
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-          Supports JPEG, PNG, WEBP, and GIF
+          {t('upload.supports')}
         </span>
       </div>
 

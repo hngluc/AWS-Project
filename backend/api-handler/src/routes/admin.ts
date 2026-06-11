@@ -1,5 +1,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { UserContext, requireAdmin } from '../middleware/auth';
 
 // ─── Lazy-loaded client ─────────────────────────────────────────
@@ -17,8 +19,19 @@ async function getDocClient() {
   return _docClient;
 }
 
+let _s3Client: any;
+
+async function getS3Client() {
+  if (!_s3Client) {
+    const { S3Client } = await import('@aws-sdk/client-s3');
+    _s3Client = new S3Client({ region: process.env.AWS_REGION });
+  }
+  return _s3Client;
+}
+
 const IMAGE_TABLE = process.env.IMAGE_TABLE_NAME!;
-const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN!;
+const PROCESSED_BUCKET = process.env.PROCESSED_BUCKET_NAME!;
+const IMAGE_URL_EXPIRY = 3600;
 
 const headers = {
   'Content-Type': 'application/json',
@@ -76,15 +89,25 @@ export async function handleListModeration(
     ExclusiveStartKey: exclusiveStartKey,
   }));
 
-  const images = (result.Items || []).map((item: Record<string, any>) => ({
-    imageId: item.imageId,
-    userId: item.userId,
-    thumbnailUrl: item.thumbnailKey
-      ? `https://${CLOUDFRONT_DOMAIN}/${item.thumbnailKey}`
-      : null,
-    originalKey: item.originalKey,
-    moderationLabels: item.moderationLabels || [],
-    createdAt: item.createdAt,
+  const s3Client = await getS3Client();
+
+  const images = await Promise.all((result.Items || []).map(async (item: Record<string, any>) => {
+    let thumbnailUrl: string | null = null;
+    if (item.thumbnailKey) {
+      thumbnailUrl = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({ Bucket: PROCESSED_BUCKET, Key: item.thumbnailKey }),
+        { expiresIn: IMAGE_URL_EXPIRY },
+      );
+    }
+    return {
+      imageId: item.imageId,
+      userId: item.userId,
+      thumbnailUrl,
+      originalKey: item.originalKey,
+      moderationLabels: item.moderationLabels || [],
+      createdAt: item.createdAt,
+    };
   }));
 
   let nextCursor: string | null = null;

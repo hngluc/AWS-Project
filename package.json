@@ -17,7 +17,7 @@
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "cdk": "npm run --workspace=infrastructure cdk",
-    "deploy": "npm run --workspace=infrastructure deploy",
+    "deploy": "npm run build && npm run --workspace=infrastructure deploy",
     "synth": "npm run --workspace=infrastructure synth"
   },
   "engines": {
