@@ -36,6 +36,12 @@ export const translations = {
     'common.filterLab': 'Filter Lab',
     'common.loading': 'Loading...',
     
+    // Upload Component
+    'upload.dropzoneActive': 'Drop files to upload',
+    'upload.dropzoneInactive': 'Drag & drop raw files here',
+    'upload.browse': 'or click to browse from device (up to 25MB)',
+    'upload.supports': 'Supports JPEG, PNG, WEBP, and GIF',
+    
     // Image Grid & Search
     'grid.empty': 'No images found. Upload your first image!',
     'grid.bulkSelect': 'Select Multiple',
@@ -113,6 +119,12 @@ export const translations = {
     'common.edit': 'Chỉnh sửa',
     'common.filterLab': 'Bộ lọc ảnh',
     'common.loading': 'Đang tải...',
+    
+    // Upload Component
+    'upload.dropzoneActive': 'Thả file vào đây để tải lên',
+    'upload.dropzoneInactive': 'Kéo & thả file ảnh vào đây',
+    'upload.browse': 'hoặc click để chọn từ thiết bị (tối đa 25MB)',
+    'upload.supports': 'Hỗ trợ định dạng JPEG, PNG, WEBP và GIF',
     
     // Image Grid & Search
     'grid.empty': 'Chưa có hình ảnh nào. Hãy tải bức ảnh đầu tiên của bạn lên!',

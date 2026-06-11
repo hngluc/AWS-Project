@@ -142,14 +142,6 @@ export async function handleUpload(
     Bucket: RAW_BUCKET,
     Key: s3Key,
     ContentType: contentType,
-    ContentLength: fileSize,
-    Metadata: {
-      'image-id': imageId,
-      'user-id': userId,
-      'original-filename': encodeURIComponent(filename),
-    },
-    // Server-side encryption
-    ServerSideEncryption: 'AES256',
   });
 
   const uploadUrl = await getSignedUrl(s3Client, command, {

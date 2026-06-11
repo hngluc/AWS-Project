@@ -1,5 +1,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { BatchGetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { UserContext, requireAuth } from '../middleware/auth';
 
 // ─── Lazy-loaded client ─────────────────────────────────────────
@@ -17,8 +19,19 @@ async function getDocClient() {
   return _docClient;
 }
 
+let _s3Client: any;
+
+async function getS3Client() {
+  if (!_s3Client) {
+    const { S3Client } = await import('@aws-sdk/client-s3');
+    _s3Client = new S3Client({ region: process.env.AWS_REGION });
+  }
+  return _s3Client;
+}
+
 const IMAGE_TABLE = process.env.IMAGE_TABLE_NAME!;
-const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN!;
+const PROCESSED_BUCKET = process.env.PROCESSED_BUCKET_NAME!;
+const IMAGE_URL_EXPIRY = 3600; // 1 hour
 
 const headers = {
   'Content-Type': 'application/json',
@@ -123,26 +136,44 @@ export async function handleSearchByTag(
     (item.visibility === 'PUBLIC' && item.moderationStatus === 'SAFE')
   ));
 
-  const images = visibleItems.map((item: Record<string, any>) => ({
-    imageId: item.imageId,
-    userId: item.userId,
-    originalFilename: item.originalFilename,
-    thumbnailUrl: item.thumbnailKey
-      ? `https://${CLOUDFRONT_DOMAIN}/${item.thumbnailKey}`
-      : null,
-    resizedUrl: item.resizedKey
-      ? `https://${CLOUDFRONT_DOMAIN}/${item.resizedKey}`
-      : null,
-    mimeType: item.mimeType,
-    fileSize: item.fileSize,
-    dimensions: item.dimensions || null,
-    exifData: item.exifData || null,
-    aiTags: item.aiTags || [],
-    moderationStatus: item.moderationStatus,
-    status: item.status,
-    visibility: item.visibility,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
+  const s3Client = await getS3Client();
+
+  const images = await Promise.all(visibleItems.map(async (item: Record<string, any>) => {
+    let thumbnailUrl: string | null = null;
+    let resizedUrl: string | null = null;
+
+    if (item.thumbnailKey) {
+      thumbnailUrl = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({ Bucket: PROCESSED_BUCKET, Key: item.thumbnailKey }),
+        { expiresIn: IMAGE_URL_EXPIRY },
+      );
+    }
+    if (item.resizedKey) {
+      resizedUrl = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({ Bucket: PROCESSED_BUCKET, Key: item.resizedKey }),
+        { expiresIn: IMAGE_URL_EXPIRY },
+      );
+    }
+
+    return {
+      imageId: item.imageId,
+      userId: item.userId,
+      originalFilename: item.originalFilename,
+      thumbnailUrl,
+      resizedUrl,
+      mimeType: item.mimeType,
+      fileSize: item.fileSize,
+      dimensions: item.dimensions || null,
+      exifData: item.exifData || null,
+      aiTags: item.aiTags || [],
+      moderationStatus: item.moderationStatus,
+      status: item.status,
+      visibility: item.visibility,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
   }));
 
   let nextCursor: string | null = null;

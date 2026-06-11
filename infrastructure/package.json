@@ -7,9 +7,9 @@
     "watch": "tsc -w",
     "cdk": "cdk",
     "synth": "cdk synth",
-    "deploy": "cdk deploy --all",
-    "deploy:staging": "cdk deploy --all -c environment=staging",
-    "deploy:production": "cdk deploy --all -c environment=production",
+    "deploy": "cdk deploy --all --require-approval never",
+    "deploy:staging": "cdk deploy --all -c environment=staging --require-approval never",
+    "deploy:production": "cdk deploy --all -c environment=production --require-approval never",
     "diff": "cdk diff",
     "destroy": "cdk destroy --all",
     "test": "jest"

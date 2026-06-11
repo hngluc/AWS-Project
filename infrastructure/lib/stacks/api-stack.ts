@@ -6,7 +6,6 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
-import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -22,7 +21,6 @@ export interface ApiStackProps extends cdk.StackProps {
   userQuotaTable: dynamodb.Table;
   userPool: cognito.UserPool;
   userPoolClient: cognito.UserPoolClient;
-  distribution: cloudfront.Distribution;
 }
 
 export class ApiStack extends cdk.Stack {
@@ -39,7 +37,6 @@ export class ApiStack extends cdk.Stack {
       rawBucket, processedBucket,
       imageTable, userQuotaTable,
       userPool, userPoolClient,
-      distribution,
     } = props;
 
     const frontendDomain = this.node.tryGetContext('frontendDomain') || '';
@@ -60,7 +57,6 @@ export class ApiStack extends cdk.Stack {
       USER_QUOTA_TABLE_NAME: userQuotaTable.tableName,
       RAW_BUCKET_NAME: rawBucket.bucketName,
       PROCESSED_BUCKET_NAME: processedBucket.bucketName,
-      CLOUDFRONT_DOMAIN: distribution.distributionDomainName,
       ENVIRONMENT: environment,
     };
 
@@ -119,6 +115,7 @@ export class ApiStack extends cdk.Stack {
     rawBucket.grantPut(this.apiHandlerFunction);     // For presigned URL generation
     rawBucket.grantRead(this.apiHandlerFunction);    // For presigned download URLs
     rawBucket.grantDelete(this.apiHandlerFunction);   // For image deletion
+    processedBucket.grantRead(this.apiHandlerFunction);   // For presigned URLs (thumbnails/resized)
     processedBucket.grantDelete(this.apiHandlerFunction); // Delete processed files too
     imageTable.grantReadWriteData(this.apiHandlerFunction);
     userQuotaTable.grantReadWriteData(this.apiHandlerFunction);
@@ -146,9 +143,17 @@ export class ApiStack extends cdk.Stack {
         minify: true,
         sourceMap: true,
         target: 'es2022',
-        externalModules: ['@aws-sdk/*'],
-        // Sharp needs native binaries — install for Lambda's Linux ARM64
-        nodeModules: ['sharp'],
+        externalModules: ['@aws-sdk/*', 'sharp'],
+        commandHooks: {
+          beforeBundling(inputDir: string, outputDir: string): string[] { return []; },
+          beforeInstall(inputDir: string, outputDir: string): string[] { return []; },
+          afterBundling(inputDir: string, outputDir: string): string[] {
+            // Force install linux-arm64 sharp inside the Lambda bundle
+            return [
+              `npm install --prefix "${outputDir}" --force @img/sharp-linux-arm64 @img/sharp-libvips-linux-arm64 sharp`
+            ];
+          },
+        },
         forceDockerBundling: false,
       },
       logRetention: logs.RetentionDays.ONE_MONTH,

@@ -18,6 +18,7 @@ cdk.context.json
 .env
 .env.local
 .env.*.local
+users.json
 
 # IDE / AI Assistants
 .vscode/

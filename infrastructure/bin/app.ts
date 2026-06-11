@@ -6,6 +6,8 @@ import { DatabaseStack } from '../lib/stacks/database-stack';
 import { AuthStack } from '../lib/stacks/auth-stack';
 import { ApiStack } from '../lib/stacks/api-stack';
 import { MonitoringStack } from '../lib/stacks/monitoring-stack';
+// NOTE: FrontendStack temporarily disabled — AWS account not yet verified for CloudFront
+// import { FrontendStack } from '../lib/stacks/frontend-stack';
 
 const app = new cdk.App();
 
@@ -58,7 +60,6 @@ const apiStack = new ApiStack(app, `${projectName}-Api-${environment}`, {
   userQuotaTable: databaseStack.userQuotaTable,
   userPool: authStack.userPool,
   userPoolClient: authStack.userPoolClient,
-  distribution: storageStack.distribution,
   tags: commonTags,
 });
 
@@ -82,4 +83,17 @@ const monitoringStack = new MonitoringStack(app, `${projectName}-Monitoring-${en
 
 monitoringStack.addDependency(apiStack);
 
+// NOTE: FrontendStack temporarily disabled — AWS account not yet verified for CloudFront
+// Once verified, uncomment the following block and re-run `npm run deploy`
+// const frontendStack = new FrontendStack(app, `${projectName}-Frontend-${environment}`, {
+//   env,
+//   projectName,
+//   environment,
+//   api: apiStack.api,
+//   userPool: authStack.userPool,
+//   userPoolClient: authStack.userPoolClient,
+//   tags: commonTags,
+// });
+// frontendStack.addDependency(apiStack);
+// frontendStack.addDependency(authStack);
 app.synth();
