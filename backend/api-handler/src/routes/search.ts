@@ -103,8 +103,8 @@ export async function handleSearchByTag(
 
   const indexItems = result.Items || [];
   const keys = indexItems
-    .filter((item: Record<string, any>) => item.PK && item.SK)
-    .map((item: Record<string, any>) => ({ PK: item.PK, SK: item.SK }));
+    .filter((item: Record<string, any>) => item.imagePK && item.imageSK)
+    .map((item: Record<string, any>) => ({ PK: item.imagePK, SK: item.imageSK }));
 
   let fullItems: Record<string, any>[] = [];
   if (keys.length > 0) {
