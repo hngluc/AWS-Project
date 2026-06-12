@@ -45,7 +45,10 @@ export class ApiStack extends cdk.Stack {
       : ['http://localhost:5173', 'http://localhost:3000'];
 
     // Resolve paths to Lambda source code (relative to infrastructure/)
-    const backendRoot = path.join(__dirname, '..', '..', '..', 'backend');
+    const backendRoot = path.resolve(__dirname, '..', '..', '..', 'backend');
+console.log('DEBUG [api-stack.ts]: __dirname is', __dirname);
+console.log('DEBUG [api-stack.ts]: backendRoot is', backendRoot);
+console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoot, 'image-processor', 'src', 'index.ts'));
 
     // ─── Common Lambda Environment Variables ────────────────────────
     const commonEnvVars: Record<string, string> = {
