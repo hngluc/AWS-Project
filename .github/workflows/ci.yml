@@ -32,6 +32,14 @@ jobs:
         run: npm run test
         continue-on-error: true
 
+      - name: Debug file system
+        run: |
+          pwd
+          ls -la
+          ls -la backend/ || echo "no backend"
+          ls -la backend/image-processor/ || echo "no image-processor"
+          ls -la backend/image-processor/src/ || echo "no src"
+
       - name: CDK Synth (validate templates)
         working-directory: infrastructure
         run: npx cdk synth --quiet
