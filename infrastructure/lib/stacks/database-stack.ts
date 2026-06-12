@@ -68,7 +68,7 @@ export class DatabaseStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.INCLUDE,
       nonKeyAttributes: [
         'imageId', 'userId', 'thumbnailKey', 'originalFilename',
-        'createdAt', 'moderationStatus',
+        'createdAt', 'moderationStatus', 'imagePK', 'imageSK'
       ],
     });
 
