@@ -55,7 +55,7 @@ export class DatabaseStack extends cdk.Stack {
     // PK: TAG#<tagName>  |  SK: IMG#<imageId>
     // Use case: "Show me all images tagged 'Mountain'"
     this.imageTable.addGlobalSecondaryIndex({
-      indexName: 'GSI1-TagIndex',
+      indexName: 'GSI1-TagIndex-v2',
       partitionKey: {
         name: 'GSI1PK',
         type: dynamodb.AttributeType.STRING,
@@ -68,7 +68,7 @@ export class DatabaseStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.INCLUDE,
       nonKeyAttributes: [
         'imageId', 'userId', 'thumbnailKey', 'originalFilename',
-        'createdAt', 'moderationStatus',
+        'createdAt', 'moderationStatus', 'imagePK', 'imageSK'
       ],
     });
 

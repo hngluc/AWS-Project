@@ -92,7 +92,7 @@ export async function handleSearchByTag(
   // enforcing visibility rules.
   const result = await docClient.send(new QueryCommand({
     TableName: IMAGE_TABLE,
-    IndexName: 'GSI1-TagIndex',
+    IndexName: 'GSI1-TagIndex-v2',
     KeyConditionExpression: 'GSI1PK = :tagKey',
     ExpressionAttributeValues: {
       ':tagKey': `TAG#${normalizedTag}`,
@@ -103,8 +103,8 @@ export async function handleSearchByTag(
 
   const indexItems = result.Items || [];
   const keys = indexItems
-    .filter((item: Record<string, any>) => item.PK && item.SK)
-    .map((item: Record<string, any>) => ({ PK: item.PK, SK: item.SK }));
+    .filter((item: Record<string, any>) => item.imagePK && item.imageSK)
+    .map((item: Record<string, any>) => ({ PK: item.imagePK, SK: item.imageSK }));
 
   let fullItems: Record<string, any>[] = [];
   if (keys.length > 0) {

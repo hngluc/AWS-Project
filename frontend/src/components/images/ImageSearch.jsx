@@ -207,7 +207,7 @@ export const ImageSearch = ({ onImageClick }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
 
       {/* Search Input Card */}
-      <div className="glass-card" style={{ padding: '1.5rem' }}>
+      <div className="glass-card" style={{ padding: '1.5rem', position: 'relative', zIndex: 10 }}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem' }}>
           <div className="autocomplete-wrapper" ref={dropdownRef}>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>

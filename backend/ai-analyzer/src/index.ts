@@ -127,6 +127,8 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context): Pro
                     SK: `IMG#${imageId}`,
                     GSI1PK: `TAG#${tag.name}`,
                     GSI1SK: `IMG#${imageId}`,
+                    imagePK: PK,
+                    imageSK: SK,
                     imageId,
                     userId,
                     confidence: tag.confidence,
