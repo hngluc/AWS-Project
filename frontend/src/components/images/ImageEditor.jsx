@@ -21,13 +21,42 @@ export const ImageEditor = ({ image, onClose }) => {
   const [isSaving, setIsSaving] = useState(false);
   const uploadImage = useImageStore((state) => state.uploadImage);
 
-  // Load image onto canvas
+  // Load image onto canvas (bypass browser cache for CORS)
   useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous"; // Important for CORS if using external S3 URLs
-    img.src = image.resizedUrl || image.thumbnailUrl; // Use resized version for editing
-    img.onload = () => {
-      setImgObj(img);
+    let objectUrl = null;
+
+    const loadImage = async () => {
+      try {
+        // Fetch the image to bypass disk cache which might not have CORS headers
+        const response = await fetch(image.resizedUrl || image.thumbnailUrl, {
+          mode: 'cors',
+          cache: 'reload' // Force a new request to get the Access-Control-Allow-Origin header
+        });
+        
+        if (!response.ok) throw new Error("Network response was not ok");
+        
+        const blob = await response.blob();
+        objectUrl = URL.createObjectURL(blob);
+        
+        const img = new Image();
+        img.onload = () => {
+          setImgObj(img);
+        };
+        img.src = objectUrl;
+      } catch (err) {
+        console.error("Failed to load image for editing:", err);
+        // Fallback to standard Image loading if fetch fails
+        const fallbackImg = new Image();
+        fallbackImg.crossOrigin = "anonymous";
+        fallbackImg.onload = () => setImgObj(fallbackImg);
+        fallbackImg.src = image.resizedUrl || image.thumbnailUrl;
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [image]);
 
