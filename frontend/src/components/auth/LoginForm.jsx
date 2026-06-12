@@ -21,6 +21,16 @@ export const LoginForm = ({ onToggleMode }) => {
   const [verificationCode, setVerificationCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  const [lockoutTimeLeft, setLockoutTimeLeft] = useState(0);
+
+  // Check lockout status on mount
+  useState(() => {
+    const lockoutUntil = parseInt(localStorage.getItem('lockout_until') || '0', 10);
+    if (lockoutUntil > Date.now()) {
+      setLockoutTimeLeft(Math.ceil((lockoutUntil - Date.now()) / 1000));
+    }
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalLoading(true);
@@ -28,8 +38,20 @@ export const LoginForm = ({ onToggleMode }) => {
     setSuccessMsg(null);
     clearError();
 
+    // Check brute-force lockout
+    const lockoutUntil = parseInt(localStorage.getItem('lockout_until') || '0', 10);
+    if (lockoutUntil > Date.now()) {
+      const secondsLeft = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      setLocalError(`Tài khoản tạm khóa do nhập sai quá nhiều. Vui lòng thử lại sau ${Math.ceil(secondsLeft / 60)} phút.`);
+      setLocalLoading(false);
+      return;
+    }
+
     try {
       await login(email, password);
+      // Success -> clear failed attempts
+      localStorage.removeItem('login_failed_attempts');
+      localStorage.removeItem('lockout_until');
     } catch (err) {
       const msg = (err.message || '').toLowerCase();
       const code = err.code || err.name || '';
@@ -38,7 +60,19 @@ export const LoginForm = ({ onToggleMode }) => {
         setNeedsVerification(true);
         setLocalError(null);
       } else {
-        setLocalError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
+        // Track failed attempts
+        let attempts = parseInt(localStorage.getItem('login_failed_attempts') || '0', 10);
+        attempts += 1;
+        
+        if (attempts >= 5) {
+          const newLockout = Date.now() + 15 * 60 * 1000; // 15 minutes lockout
+          localStorage.setItem('lockout_until', newLockout.toString());
+          localStorage.setItem('login_failed_attempts', '5');
+          setLocalError('Bạn đã nhập sai 5 lần. Tạm khóa đăng nhập trong 15 phút để bảo mật.');
+        } else {
+          localStorage.setItem('login_failed_attempts', attempts.toString());
+          setLocalError(`Đăng nhập thất bại. Bạn còn ${5 - attempts} lần thử trước khi bị khóa.`);
+        }
       }
     } finally {
       setLocalLoading(false);
