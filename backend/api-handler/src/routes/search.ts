@@ -92,7 +92,7 @@ export async function handleSearchByTag(
   // enforcing visibility rules.
   const result = await docClient.send(new QueryCommand({
     TableName: IMAGE_TABLE,
-    IndexName: 'GSI1-TagIndex',
+    IndexName: 'GSI1-TagIndex-v2',
     KeyConditionExpression: 'GSI1PK = :tagKey',
     ExpressionAttributeValues: {
       ':tagKey': `TAG#${normalizedTag}`,
