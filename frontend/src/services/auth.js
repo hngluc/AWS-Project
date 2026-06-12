@@ -68,6 +68,36 @@ export const authService = {
     });
   },
 
+  async confirmSignUp(email, code) {
+    if (this.isDemoMode()) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return { success: true };
+    }
+
+    return new Promise((resolve, reject) => {
+      const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+      cognitoUser.confirmRegistration(code, true, (err, result) => {
+        if (err) return reject(err);
+        resolve({ success: true, result });
+      });
+    });
+  },
+
+  async resendConfirmationCode(email) {
+    if (this.isDemoMode()) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return { success: true };
+    }
+
+    return new Promise((resolve, reject) => {
+      const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+      cognitoUser.resendConfirmationCode((err, result) => {
+        if (err) return reject(err);
+        resolve({ success: true, result });
+      });
+    });
+  },
+
   async login(email, password) {
     if (this.isDemoMode()) {
       // Mock Login

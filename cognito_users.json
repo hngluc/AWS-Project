@@ -1,0 +1,16 @@
+﻿{
+    "Users": [
+        {
+            "Username": "593a255c-1061-70e4-f27c-6930be12094f",
+            "Attributes": [
+                {
+                    "Name": "email",
+                    "Value": "lucnguyen1300385@gmail.com"
+                },
+                {
+                    "Name": "email_verified",
+                    "Value": "false"
+                },
+                {
+                    "Name": "name",
+                    "Value": 

@@ -18,25 +18,45 @@ export const useAuthStore = create((set) => ({
   },
 
   login: async (email, password) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const user = await authService.login(email, password);
       set({ user, isAuthenticated: true, isLoading: false });
       return user;
     } catch (error) {
-      set({ isLoading: false, error: error.message });
+      set({ error: error.message });
       throw error;
     }
   },
 
   signUp: async (email, password, name) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const result = await authService.signUp(email, password, name);
-      set({ isLoading: false });
       return result;
     } catch (error) {
-      set({ isLoading: false, error: error.message });
+      set({ error: error.message });
+      throw error;
+    }
+  },
+
+  confirmSignUp: async (email, code) => {
+    set({ error: null });
+    try {
+      const result = await authService.confirmSignUp(email, code);
+      return result;
+    } catch (error) {
+      set({ error: error.message });
+      throw error;
+    }
+  },
+
+  resendConfirmationCode: async (email) => {
+    set({ error: null });
+    try {
+      await authService.resendConfirmationCode(email);
+    } catch (error) {
+      set({ error: error.message });
       throw error;
     }
   },
