@@ -322,7 +322,7 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
     presignedUrl.addMethod('POST', apiIntegration, authMethodOptions); // Get upload URL
 
     const publicImages = images.addResource('public');
-    publicImages.addMethod('GET', apiIntegration, authMethodOptions); // Community gallery
+    publicImages.addMethod('GET', apiIntegration); // Community gallery
 
     const bulk = images.addResource('bulk');
     bulk.addMethod('DELETE', apiIntegration, authMethodOptions); // Bulk delete

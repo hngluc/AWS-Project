@@ -4,6 +4,7 @@ import { authService } from '../services/auth';
 export const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
+  isGuest: false,
   isLoading: true,
   error: null,
   config: authService.getConfig(),
@@ -61,10 +62,26 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  enterGuestMode: () => {
+    sessionStorage.setItem('smart_image_guest', 'true');
+    set({ user: null, isAuthenticated: false, isGuest: true, isLoading: false, error: null });
+  },
+
+  exitGuestMode: () => {
+    sessionStorage.removeItem('smart_image_guest');
+    set({ isGuest: false });
+  },
+
   logout: () => {
     authService.logout();
-    set({ user: null, isAuthenticated: false, error: null });
+    sessionStorage.removeItem('smart_image_guest');
+    set({ user: null, isAuthenticated: false, isGuest: false, error: null });
   },
 
   clearError: () => set({ error: null }),
 }));
+
+// Initialize guest state from storage immediately
+if (typeof window !== 'undefined' && sessionStorage.getItem('smart_image_guest') === 'true') {
+  useAuthStore.setState({ isGuest: true });
+}

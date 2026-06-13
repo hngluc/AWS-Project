@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../ui/Button';
-import { Mail, RefreshCw } from 'lucide-react';
+import { Mail, RefreshCw, Globe } from 'lucide-react';
 
 export const LoginForm = ({ onToggleMode }) => {
   const login = useAuthStore((state) => state.login);
@@ -310,6 +310,54 @@ export const LoginForm = ({ onToggleMode }) => {
           Đăng ký ngay
         </span>
       </div>
+
+      {/* Guest Mode Divider */}
+      <div style={{ 
+        display: 'flex', alignItems: 'center', gap: '1rem', 
+        margin: '1.5rem 0 1rem',
+      }}>
+        <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>
+          hoặc
+        </span>
+        <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+      </div>
+
+      {/* Guest Mode Button */}
+      <button
+        type="button"
+        onClick={() => useAuthStore.getState().enterGuestMode()}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+          padding: '0.75rem 1rem',
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--text-secondary)',
+          fontSize: '0.9rem',
+          fontWeight: '600',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          fontFamily: 'var(--font-family)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(124, 58, 237, 0.08)';
+          e.currentTarget.style.borderColor = 'var(--primary)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+          e.currentTarget.style.borderColor = 'var(--border-color)';
+          e.currentTarget.style.color = 'var(--text-secondary)';
+        }}
+      >
+        <Globe size={18} />
+        Xem ảnh cộng đồng (không cần đăng nhập)
+      </button>
     </div>
   );
 };
