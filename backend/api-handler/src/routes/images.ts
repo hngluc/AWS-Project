@@ -186,7 +186,6 @@ export async function handleListPublicImages(
   event: APIGatewayProxyEvent,
   userContext: UserContext,
 ): Promise<APIGatewayProxyResult> {
-  requireAuth(userContext);
   const params = event.queryStringParameters || {};
 
   let limit = parseInt(params.limit || '20', 10);

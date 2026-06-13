@@ -328,7 +328,7 @@ export const apiService = {
     return unwrapCollectionResponse(await request(url));
   },
 
-  // --- List Public Images ---
+  // --- List Public Images (works without authentication) ---
   async getPublicImages(limit = 20, cursor = '') {
     if (authService.isDemoMode()) {
       await mockDelay(400);
@@ -341,9 +341,16 @@ export const apiService = {
       };
     }
 
+    // Public endpoint — does not require auth header
     let url = `/v1/images/public?limit=${limit}`;
     if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
-    return unwrapCollectionResponse(await request(url));
+    
+    const response = await fetch(`${API_BASE_URL}${url}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to fetch public images');
+    }
+    return unwrapCollectionResponse(await response.json());
   },
 
   // --- Get Image Detail ---
