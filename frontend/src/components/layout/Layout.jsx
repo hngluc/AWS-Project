@@ -7,7 +7,7 @@ import { Header } from './Header';
  * On mobile (≤1024px), the sidebar is hidden behind a hamburger menu
  * with an overlay backdrop.
  */
-export const Layout = ({ children, activeTab, onTabChange, title }) => {
+export const Layout = ({ children, activeTab, onTabChange, title, isGuest = false }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleToggleSidebar = useCallback(() => {
@@ -64,6 +64,7 @@ export const Layout = ({ children, activeTab, onTabChange, title }) => {
         onTabChange={handleTabChange}
         isOpen={isSidebarOpen}
         onClose={handleCloseSidebar}
+        isGuest={isGuest}
       />
 
       {/* Main viewport */}

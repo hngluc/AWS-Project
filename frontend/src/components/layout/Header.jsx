@@ -1,14 +1,18 @@
 
 import { useAuthStore } from '../../store/authStore';
-import { Database, Cloud } from 'lucide-react';
+import { Database, Cloud, Eye } from 'lucide-react';
 import { UserMenu } from '../ui/UserMenu';
+import { ThemeSwitcher } from '../ui/ThemeSwitcher';
+import { LanguageSwitcher } from '../ui/LanguageSwitcher';
 
 /**
  * Header – page title and cloud infrastructure status indicator.
  * Responsive: hides badge text on mobile, shows icon only.
+ * Supports guest mode with a view-only badge instead of UserMenu.
  */
 export const Header = ({ title }) => {
   const config = useAuthStore((state) => state.config);
+  const isGuest = useAuthStore((state) => state.isGuest);
   const isDemo = config?.isDemo;
 
   return (
@@ -42,7 +46,34 @@ export const Header = ({ title }) => {
 
       {/* Cloud Infrastructure Status Banner */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-        <UserMenu />
+        {isGuest ? (
+          <>
+            {/* Guest: show theme/language switchers and a guest badge */}
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'rgba(124, 58, 237, 0.08)',
+                border: '1px solid rgba(124, 58, 237, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.5rem 1rem',
+                color: 'var(--primary)',
+                fontSize: '0.8rem',
+                fontWeight: '600',
+              }}
+              role="status"
+              aria-label="Browsing as guest - view only"
+            >
+              <Eye size={16} aria-hidden="true" />
+              <span className="header-badge-text">Chế độ xem</span>
+            </div>
+          </>
+        ) : (
+          <UserMenu />
+        )}
         
         {isDemo ? (
           <div

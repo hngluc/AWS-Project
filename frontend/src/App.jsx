@@ -22,7 +22,7 @@ import { useThemeStore } from './store/themeStore';
 function App() {
   const { t } = useTranslation();
   const { theme } = useThemeStore();
-  const { isAuthenticated, initialize, isLoading } = useAuthStore();
+  const { isAuthenticated, isGuest, initialize, isLoading, exitGuestMode } = useAuthStore();
   const { images, publicImages, fetchImages, fetchPublicImages, selectedImage, setSelectedImage, bulkDeleteImages } = useImageStore();
   
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
@@ -50,6 +50,13 @@ function App() {
       }
     }
   }, [isAuthenticated, activeTab, fetchImages, fetchPublicImages]);
+
+  // Guest mode: always fetch public images
+  useEffect(() => {
+    if (isGuest) {
+      fetchPublicImages();
+    }
+  }, [isGuest, fetchPublicImages]);
 
   // Listen to mock background worker event updates for live-refreshing the UI
   useEffect(() => {
@@ -96,7 +103,56 @@ function App() {
     );
   }
 
-  // Guest Mode (Login / Signup Screens)
+  // Guest Mode: Browse-only community view
+  if (isGuest && !isAuthenticated) {
+    return (
+      <>
+        <Layout activeTab="community" onTabChange={() => {}} title={t('nav.community')} isGuest={true}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                {t('desc.community')}
+              </p>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={fetchPublicImages}
+                icon={<RefreshCw size={14} />}
+                ariaLabel="Refresh community gallery"
+              >
+                Refresh
+              </Button>
+            </div>
+            
+            <ImageGrid 
+              images={publicImages} 
+              onImageClick={setSelectedImage} 
+              isLoading={isLoading} 
+            />
+          </div>
+
+          {/* Guest Detail Modal — view-only, no action buttons */}
+          <Modal 
+            isOpen={!!selectedImage} 
+            onClose={() => setSelectedImage(null)}
+            title="Image Insights"
+          >
+            {selectedImage && (
+              <ImageDetail 
+                image={selectedImage} 
+                onClose={() => setSelectedImage(null)}
+                isGuest={true}
+              />
+            )}
+          </Modal>
+        </Layout>
+
+        <ToastContainer />
+      </>
+    );
+  }
+
+  // Auth Screens (Login / Signup)
   if (!isAuthenticated) {
     return (
       <>
