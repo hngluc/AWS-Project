@@ -20,6 +20,7 @@ export interface ApiStackProps extends cdk.StackProps {
   processedBucket: s3.Bucket;
   imageTable: dynamodb.Table;
   userQuotaTable: dynamodb.Table;
+  userProfileTable: dynamodb.Table;
   userPool: cognito.UserPool;
   userPoolClient: cognito.UserPoolClient;
 }
@@ -36,7 +37,7 @@ export class ApiStack extends cdk.Stack {
     const {
       projectName, environment,
       rawBucket, processedBucket,
-      imageTable, userQuotaTable,
+      imageTable, userQuotaTable, userProfileTable,
       userPool, userPoolClient,
     } = props;
 
@@ -56,6 +57,7 @@ export class ApiStack extends cdk.Stack {
       POWERTOOLS_LOG_LEVEL: environment === 'production' ? 'WARN' : 'DEBUG',
       IMAGE_TABLE_NAME: imageTable.tableName,
       USER_QUOTA_TABLE_NAME: userQuotaTable.tableName,
+      USER_PROFILE_TABLE_NAME: userProfileTable.tableName,
       RAW_BUCKET_NAME: rawBucket.bucketName,
       PROCESSED_BUCKET_NAME: processedBucket.bucketName,
       ENVIRONMENT: environment,
@@ -122,6 +124,14 @@ export class ApiStack extends cdk.Stack {
     processedBucket.grantDelete(this.apiHandlerFunction); // Delete processed files too
     imageTable.grantReadWriteData(this.apiHandlerFunction);
     userQuotaTable.grantReadWriteData(this.apiHandlerFunction);
+    userProfileTable.grantReadWriteData(this.apiHandlerFunction);
+
+    // Cognito profile sync permissions for profile updates
+    this.apiHandlerFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['cognito-idp:AdminUpdateUserAttributes'],
+      resources: [userPool.userPoolArn],
+    }));
 
     // ─── Lambda: Image Processor ────────────────────────────────────
     // Triggered by S3 events. Resizes images, extracts EXIF, invokes AI analyzer.
@@ -321,6 +331,23 @@ export class ApiStack extends cdk.Stack {
     });
 
     const v1 = this.api.root.addResource('v1');
+
+    // --- Profile routes (Authenticated) ---
+    const profile = v1.addResource('profile');
+    profile.addMethod('GET', apiIntegration, authMethodOptions);
+    profile.addMethod('PATCH', apiIntegration, {
+      ...authMethodOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel },
+    });
+
+    const profileAvatar = profile.addResource('avatar');
+    const profileAvatarPresigned = profileAvatar.addResource('presigned-url');
+    profileAvatarPresigned.addMethod('POST', apiIntegration, {
+      ...authMethodOptions,
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel },
+    });
 
     // --- Auth routes (Public) ---
     const auth = v1.addResource('auth');

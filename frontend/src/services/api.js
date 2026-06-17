@@ -177,6 +177,116 @@ function runMockProcessing(imageId, userId, imageFile) {
 }
 
 export const apiService = {
+  // --- Profile ---
+  async getProfile() {
+    if (authService.isDemoMode()) {
+      await mockDelay(200);
+      const session = JSON.parse(localStorage.getItem('mock_session') || '{}');
+      return {
+        userId: session.userId || null,
+        email: session.email || null,
+        displayName: session.name || '',
+        phoneNumber: session.phoneNumber || null,
+        avatarUrl: session.avatarUrl || null,
+        avatarKey: session.avatarKey || null,
+      };
+    }
+
+    return unwrapResponsePayload(await request('/v1/profile'));
+  },
+
+  async getAvatarPresignedUrl(filename, contentType, fileSize) {
+    if (authService.isDemoMode()) {
+      await mockDelay(200);
+      const session = JSON.parse(localStorage.getItem('mock_session') || '{}');
+      const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+      return {
+        uploadUrl: 'mock://avatar-upload',
+        avatarKey: `users/${session.userId || 'mock-user'}/avatar/img_${Math.random().toString(36).slice(2, 10)}.${ext}`,
+        expiresIn: 900,
+      };
+    }
+
+    return unwrapResponsePayload(await request('/v1/profile/avatar/presigned-url', {
+      method: 'POST',
+      body: JSON.stringify({ filename, contentType, fileSize }),
+    }));
+  },
+
+  async uploadAvatarToS3(uploadUrl, file, onProgress, signal) {
+    if (authService.isDemoMode()) {
+      for (let i = 15; i <= 100; i += 20) {
+        if (signal?.aborted) throw new Error('AbortError');
+        await mockDelay(120);
+        if (onProgress) onProgress(i);
+      }
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Failed to read avatar file'));
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          xhr.abort();
+          reject(new Error('AbortError'));
+        });
+      }
+
+      xhr.open('PUT', uploadUrl, true);
+      xhr.setRequestHeader('Content-Type', file.type);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Avatar upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Avatar upload network error'));
+      xhr.send(file);
+    });
+  },
+
+  async updateProfile(updates) {
+    if (authService.isDemoMode()) {
+      await mockDelay(250);
+      const session = JSON.parse(localStorage.getItem('mock_session') || '{}');
+      const next = {
+        ...session,
+        ...(updates.displayName ? { name: updates.displayName } : {}),
+        ...(updates.avatarUrl !== undefined ? { avatarUrl: updates.avatarUrl } : {}),
+        ...(updates.avatarKey !== undefined ? { avatarKey: updates.avatarKey } : {}),
+        ...(updates.phoneNumber !== undefined ? { phoneNumber: updates.phoneNumber } : {}),
+      };
+      localStorage.setItem('mock_session', JSON.stringify(next));
+      return {
+        userId: next.userId,
+        displayName: next.name,
+        phoneNumber: next.phoneNumber || null,
+        avatarUrl: next.avatarUrl || null,
+        avatarKey: next.avatarKey || null,
+      };
+    }
+
+    return unwrapResponsePayload(await request('/v1/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }));
+  },
+
   // --- Presigned Upload URL ---
   async getPresignedUrl(filename, contentType, fileSize) {
     if (authService.isDemoMode()) {

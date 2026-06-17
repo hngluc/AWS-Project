@@ -78,6 +78,19 @@ export const useAuthStore = create((set) => ({
     set({ user: null, isAuthenticated: false, isGuest: false, error: null });
   },
 
+  updateUserProfile: (updates) => {
+    set((state) => ({
+      user: state.user
+        ? {
+            ...state.user,
+            ...(updates.displayName ? { name: updates.displayName } : {}),
+            ...(updates.avatarUrl !== undefined ? { avatarUrl: updates.avatarUrl } : {}),
+            ...(updates.phoneNumber !== undefined ? { phoneNumber: updates.phoneNumber } : {}),
+          }
+        : state.user,
+    }));
+  },
+
   clearError: () => set({ error: null }),
 }));
 
