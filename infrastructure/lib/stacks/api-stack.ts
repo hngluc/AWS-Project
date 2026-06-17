@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
@@ -46,9 +47,6 @@ export class ApiStack extends cdk.Stack {
 
     // Resolve paths to Lambda source code (relative to infrastructure/)
     const backendRoot = path.resolve(__dirname, '..', '..', '..', 'backend');
-console.log('DEBUG [api-stack.ts]: __dirname is', __dirname);
-console.log('DEBUG [api-stack.ts]: backendRoot is', backendRoot);
-console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoot, 'image-processor', 'src', 'index.ts'));
 
     // ─── Common Lambda Environment Variables ────────────────────────
     const commonEnvVars: Record<string, string> = {
@@ -85,6 +83,7 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
         target: 'es2022',
         // Exclude AWS SDK v3 — already available in Lambda runtime
         externalModules: ['@aws-sdk/*'],
+        forceDockerBundling: true,
       },
       logRetention: logs.RetentionDays.TWO_WEEKS,
     });
@@ -109,6 +108,7 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
         sourceMap: true,
         target: 'es2022',
         externalModules: ['@aws-sdk/*'],
+        forceDockerBundling: true,
       },
       logRetention: logs.RetentionDays.ONE_MONTH,
     });
@@ -152,12 +152,14 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
           beforeInstall(inputDir: string, outputDir: string): string[] { return []; },
           afterBundling(inputDir: string, outputDir: string): string[] {
             // Force install linux-arm64 sharp inside the Lambda bundle
+            // Delete .bin folder to prevent Windows EINVAL readlink error
             return [
-              `npm install --prefix "${outputDir}" --force @img/sharp-linux-arm64 @img/sharp-libvips-linux-arm64 sharp`
+              `npm install --prefix "${outputDir}" --force @img/sharp-linux-arm64 @img/sharp-libvips-linux-arm64 sharp`,
+              `rm -rf "${outputDir}/node_modules/.bin"`
             ];
           },
         },
-        forceDockerBundling: false,
+        forceDockerBundling: true,
       },
       logRetention: logs.RetentionDays.ONE_MONTH,
     });
@@ -200,6 +202,7 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
         sourceMap: true,
         target: 'es2022',
         externalModules: ['@aws-sdk/*'],
+        forceDockerBundling: true,
       },
       logRetention: logs.RetentionDays.ONE_MONTH,
     });
@@ -301,25 +304,54 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
     });
 
     // ─── API Routes ─────────────────────────────────────────────────
+    // ─── API Gateway Request Validators ─────────────────────────────
+    const bodyValidator = new apigateway.RequestValidator(this, 'BodyValidator', {
+      restApi: this.api,
+      requestValidatorName: 'validate-body',
+      validateRequestBody: true,
+      validateRequestParameters: false,
+    });
+
+    // We must define a Request Model to strictly enforce body validation.
+    // For this example, an empty model instructs API Gateway to accept any JSON body, 
+    // but the request *must* contain a body if validateRequestBody is true.
+    const emptyModel = this.api.addModel('EmptyModel', {
+      contentType: 'application/json',
+      schema: {},
+    });
+
     const v1 = this.api.root.addResource('v1');
 
     // --- Auth routes (Public) ---
     const auth = v1.addResource('auth');
     const signup = auth.addResource('signup');
-    signup.addMethod('POST', apiIntegration); // No auth required
+    signup.addMethod('POST', apiIntegration, { 
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel }
+    }); // No auth required
 
     const login = auth.addResource('login');
-    login.addMethod('POST', apiIntegration);
+    login.addMethod('POST', apiIntegration, { 
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel }
+    });
 
     const refresh = auth.addResource('refresh');
-    refresh.addMethod('POST', apiIntegration);
+    refresh.addMethod('POST', apiIntegration, { 
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel }
+    });
 
     // --- Image routes (Authenticated) ---
     const images = v1.addResource('images');
     images.addMethod('GET', apiIntegration, authMethodOptions);    // List images
 
     const presignedUrl = images.addResource('presigned-url');
-    presignedUrl.addMethod('POST', apiIntegration, authMethodOptions); // Get upload URL
+    presignedUrl.addMethod('POST', apiIntegration, { 
+      ...authMethodOptions, 
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel }
+    }); // Get upload URL
 
     const publicImages = images.addResource('public');
     publicImages.addMethod('GET', apiIntegration); // Community gallery
@@ -333,7 +365,11 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
     const imageById = images.addResource('{imageId}');
     imageById.addMethod('GET', apiIntegration, authMethodOptions);    // Get image detail
     imageById.addMethod('DELETE', apiIntegration, authMethodOptions); // Delete image
-    imageById.addMethod('PATCH', apiIntegration, authMethodOptions);  // Update image
+    imageById.addMethod('PATCH', apiIntegration, { 
+      ...authMethodOptions, 
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel }
+    });  // Update image
 
     const download = imageById.addResource('download');
     download.addMethod('GET', apiIntegration, authMethodOptions); // Download URL
@@ -344,14 +380,61 @@ console.log('DEBUG [api-stack.ts]: Expected entry path is', path.join(backendRoo
     moderation.addMethod('GET', apiIntegration, authMethodOptions); // List flagged
 
     const moderateById = moderation.addResource('{imageId}');
-    moderateById.addMethod('POST', apiIntegration, authMethodOptions); // Approve/reject
+    moderateById.addMethod('POST', apiIntegration, { 
+      ...authMethodOptions, 
+      requestValidator: bodyValidator,
+      requestModels: { 'application/json': emptyModel }
+    }); // Approve/reject
 
-    // ─── API Gateway Request Validators ─────────────────────────────
-    const bodyValidator = new apigateway.RequestValidator(this, 'BodyValidator', {
-      restApi: this.api,
-      requestValidatorName: 'validate-body',
-      validateRequestBody: true,
-      validateRequestParameters: false,
+    // ─── AWS WAFv2 Web ACL ──────────────────────────────────────────
+    const webAcl = new wafv2.CfnWebACL(this, 'ApiWebAcl', {
+      defaultAction: { allow: {} },
+      scope: 'REGIONAL',
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: true,
+        metricName: `${projectName}-WafMetrics-${environment}`,
+        sampledRequestsEnabled: true,
+      },
+      rules: [
+        {
+          name: 'AWS-AWSManagedRulesCommonRuleSet',
+          priority: 1,
+          overrideAction: { none: {} },
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: 'AWS',
+              name: 'AWSManagedRulesCommonRuleSet',
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'AWSManagedRulesCommonRuleSetMetric',
+            sampledRequestsEnabled: true,
+          },
+        },
+        {
+          name: 'RateLimitRule',
+          priority: 2,
+          action: { block: {} },
+          statement: {
+            rateBasedStatement: {
+              limit: 2000,
+              aggregateKeyType: 'IP',
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'RateLimitRuleMetric',
+            sampledRequestsEnabled: true,
+          },
+        }
+      ],
+    });
+
+    // Associate WAF to API Gateway Stage
+    new wafv2.CfnWebACLAssociation(this, 'ApiWebAclAssoc', {
+      resourceArn: `arn:aws:apigateway:${this.region}::/restapis/${this.api.restApiId}/stages/${this.api.deploymentStage.stageName}`,
+      webAclArn: webAcl.attrArn,
     });
 
     // ─── Outputs ────────────────────────────────────────────────────
