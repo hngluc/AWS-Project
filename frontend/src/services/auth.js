@@ -208,4 +208,22 @@ export const authService = {
       });
     });
   },
+
+  updateLocalProfile(profileUpdates = {}) {
+    if (this.isDemoMode()) {
+      const session = localStorage.getItem('mock_session');
+      if (!session) return null;
+      const current = JSON.parse(session);
+      const next = {
+        ...current,
+        ...(profileUpdates.displayName ? { name: profileUpdates.displayName } : {}),
+        ...(profileUpdates.avatarUrl !== undefined ? { avatarUrl: profileUpdates.avatarUrl } : {}),
+        ...(profileUpdates.phoneNumber !== undefined ? { phoneNumber: profileUpdates.phoneNumber } : {}),
+      };
+      localStorage.setItem('mock_session', JSON.stringify(next));
+      return next;
+    }
+
+    return null;
+  },
 };

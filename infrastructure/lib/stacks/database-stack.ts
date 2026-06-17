@@ -10,6 +10,7 @@ export interface DatabaseStackProps extends cdk.StackProps {
 export class DatabaseStack extends cdk.Stack {
   public readonly imageTable: dynamodb.Table;
   public readonly userQuotaTable: dynamodb.Table;
+  public readonly userProfileTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
@@ -106,6 +107,20 @@ export class DatabaseStack extends cdk.Stack {
         : cdk.RemovalPolicy.DESTROY,
     });
 
+    // ─── User Profile Table ────────────────────────────────────────
+    // Stores profile metadata per user
+    // PK: USER#<userId>  |  SK: PROFILE
+    this.userProfileTable = new dynamodb.Table(this, 'UserProfileTable', {
+      tableName: `${projectName}-UserProfiles-${environment}`,
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
+      removalPolicy: environment === 'production'
+        ? cdk.RemovalPolicy.RETAIN
+        : cdk.RemovalPolicy.DESTROY,
+    });
+
     // ─── Outputs ────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'ImageTableName', {
       value: this.imageTable.tableName,
@@ -123,6 +138,12 @@ export class DatabaseStack extends cdk.Stack {
       value: this.userQuotaTable.tableName,
       description: 'DynamoDB table name for user quotas',
       exportName: `${projectName}-${environment}-UserQuotaTableName`,
+    });
+
+    new cdk.CfnOutput(this, 'UserProfileTableName', {
+      value: this.userProfileTable.tableName,
+      description: 'DynamoDB table name for user profiles',
+      exportName: `${projectName}-${environment}-UserProfileTableName`,
     });
   }
 }

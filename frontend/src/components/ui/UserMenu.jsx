@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { Settings, LogOut, User, ChevronDown } from 'lucide-react';
+import { Settings, LogOut, User, ChevronDown, PencilLine } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../hooks/useTranslation';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { Badge } from './Badge';
+import { ProfileSettingsModal } from './ProfileSettingsModal';
 
 export const UserMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const menuRef = useRef(null);
   const { user, logout } = useAuthStore();
   const { t } = useTranslation();
@@ -43,7 +45,15 @@ export const UserMenu = () => {
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <Settings size={16} />
+        {user?.avatarUrl ? (
+          <img
+            src={user.avatarUrl}
+            alt="User avatar"
+            style={{ width: '20px', height: '20px', borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+          />
+        ) : (
+          <Settings size={16} />
+        )}
         <span style={{ fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           {t('nav.settings')}
           <ChevronDown size={14} style={{ opacity: 0.7 }} />
@@ -74,10 +84,18 @@ export const UserMenu = () => {
                 style={{ 
                   width: '36px', height: '36px', borderRadius: 'var(--radius-full)', 
                   background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', 
-                  justifyContent: 'center', border: '1px solid var(--glass-border)', flexShrink: 0 
+                  justifyContent: 'center', border: '1px solid var(--glass-border)', flexShrink: 0, overflow: 'hidden',
                 }}
               >
-                <User size={18} color="var(--text-secondary)" />
+                {user?.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt="User avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <User size={18} color="var(--text-secondary)" />
+                )}
               </div>
               <div style={{ overflow: 'hidden', flex: 1 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -93,6 +111,30 @@ export const UserMenu = () => {
 
           {/* Settings Options */}
           <div style={{ padding: '0.5rem' }}>
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                setIsProfileModalOpen(true);
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.5rem 0.5rem',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                <PencilLine size={14} />
+                {t('nav.editProfile')}
+              </span>
+            </button>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.5rem' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('nav.appearance')}</span>
               <ThemeSwitcher />
@@ -133,6 +175,11 @@ export const UserMenu = () => {
           </div>
         </div>
       )}
+
+      <ProfileSettingsModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </div>
   );
 };

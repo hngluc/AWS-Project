@@ -15,6 +15,11 @@ import {
 } from './routes/images';
 import { handleSearchByTag } from './routes/search';
 import { handleListModeration, handleModerateImage } from './routes/admin';
+import {
+  handleGetAvatarUploadUrl,
+  handleGetProfile,
+  handleUpdateProfile,
+} from './routes/profile';
 import { extractUserContext } from './middleware/auth';
 
 /**
@@ -34,6 +39,21 @@ const routes = [
     method: 'POST' as const,
     path: '/v1/images/presigned-url',
     handler: wrapRoute(handleUpload),
+  },
+  {
+    method: 'GET' as const,
+    path: '/v1/profile',
+    handler: wrapRoute(handleGetProfile),
+  },
+  {
+    method: 'PATCH' as const,
+    path: '/v1/profile',
+    handler: wrapRoute(handleUpdateProfile),
+  },
+  {
+    method: 'POST' as const,
+    path: '/v1/profile/avatar/presigned-url',
+    handler: wrapRoute(handleGetAvatarUploadUrl),
   },
   {
     method: 'GET' as const,

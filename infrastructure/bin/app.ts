@@ -58,6 +58,7 @@ const apiStack = new ApiStack(app, `${projectName}-Api-${environment}`, {
   processedBucket: storageStack.processedBucket,
   imageTable: databaseStack.imageTable,
   userQuotaTable: databaseStack.userQuotaTable,
+  userProfileTable: databaseStack.userProfileTable,
   userPool: authStack.userPool,
   userPoolClient: authStack.userPoolClient,
   tags: commonTags,
