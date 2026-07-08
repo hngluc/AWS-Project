@@ -147,35 +147,45 @@ npm run --workspace=frontend build
 
 ## Deploy
 
-Bootstrap CDK once per account/region:
+### Step 1: Configure Environment Variables
+1. Copy the `.env.example` file in the root directory to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Open the `.env` file and fill in all variables:
+   * **AWS Credentials**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` to grant CDK permissions to deploy to your AWS account.
+   * **GitHub Config**: `GITHUB_REPO_URL` (your GitHub repo URL), `GITHUB_BRANCH` (the branch you want Amplify to deploy, e.g. `phuong` or `staging`), and `GITHUB_TOKEN` (your GitHub Personal Access Token with `repo` and `admin:repo_hook` scopes for webhook registration).
 
+3. Load environment variables into the current terminal session (for PowerShell on Windows):
+   ```powershell
+   .\load-env.ps1
+   ```
+
+### Step 2: Bootstrap CDK (once per account/region)
 ```bash
 npx cdk bootstrap aws://ACCOUNT_ID/ap-southeast-1
 ```
 
-Deploy staging:
-
+### Step 3: Build the Project
+Build all workspaces (including backend shared, lambdas, and frontend):
 ```bash
-cd infrastructure
-npm run deploy:staging
+npm run build
 ```
 
-Deploy production:
+### Step 4: Deploy CDK to AWS
+* **Deploy to staging:**
+  ```powershell
+  npm run --workspace=infrastructure deploy:staging
+  ```
+* **Deploy to production:**
+  ```powershell
+  npm run --workspace=infrastructure deploy:production
+  ```
 
-```bash
-cd infrastructure
-npm run deploy:production
-```
+After successful deployment, CDK will provision all backend services and link AWS Amplify to your GitHub repository.
 
-Useful CDK commands:
-
-```bash
-npm run --workspace=infrastructure synth
-npm run --workspace=infrastructure diff
-npm run --workspace=infrastructure deploy
-```
-
-After deployment, copy the API Gateway URL, Cognito User Pool ID, Cognito Client ID, and AWS region into the frontend environment variables.
+### Step 5: Trigger CI/CD
+Make sure you have pushed all your code changes to your GitHub repository. As soon as a push event occurs on the configured branch (`GITHUB_BRANCH`), AWS Amplify will automatically pull, build, and deploy the new frontend version without requiring any manual deployment from your local machine.
 
 ## API Endpoints
 

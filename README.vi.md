@@ -147,35 +147,45 @@ npm run --workspace=frontend build
 
 ## Deploy
 
-Bootstrap CDK một lần cho mỗi account/region:
+### Bước 1: Cấu hình biến môi trường
+1. Sao chép tệp `.env.example` ở thư mục gốc thành `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Mở tệp `.env` và điền đầy đủ các thông tin:
+   * **AWS Credentials**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` để CDK có quyền deploy lên tài khoản AWS của bạn.
+   * **GitHub Config**: `GITHUB_REPO_URL` (URL repo GitHub của bạn), `GITHUB_BRANCH` (nhánh cần Amplify deploy, ví dụ: `phuong` hoặc `staging`), và `GITHUB_TOKEN` (GitHub Personal Access Token có quyền `repo` và `admin:repo_hook` để Amplify tạo Webhook tự động).
 
+3. Nạp biến môi trường vào phiên làm việc hiện tại (đối với PowerShell trên Windows):
+   ```powershell
+   .\load-env.ps1
+   ```
+
+### Bước 2: Bootstrap CDK (chỉ cần làm một lần cho mỗi account/region)
 ```bash
 npx cdk bootstrap aws://ACCOUNT_ID/ap-southeast-1
 ```
 
-Deploy staging:
-
+### Bước 3: Build dự án
+Build toàn bộ workspaces (bao gồm cả backend shared, lambdas và frontend):
 ```bash
-cd infrastructure
-npm run deploy:staging
+npm run build
 ```
 
-Deploy production:
+### Bước 4: Deploy CDK lên AWS
+* **Deploy môi trường staging:**
+  ```powershell
+  npm run --workspace=infrastructure deploy:staging
+  ```
+* **Deploy môi trường production:**
+  ```powershell
+  npm run --workspace=infrastructure deploy:production
+  ```
 
-```bash
-cd infrastructure
-npm run deploy:production
-```
+Sau khi chạy lệnh deploy thành công, CDK sẽ khởi tạo toàn bộ hạ tầng backend và liên kết AWS Amplify với repository GitHub của bạn.
 
-Một số lệnh CDK hữu ích:
-
-```bash
-npm run --workspace=infrastructure synth
-npm run --workspace=infrastructure diff
-npm run --workspace=infrastructure deploy
-```
-
-Sau khi deploy, lấy API Gateway URL, Cognito User Pool ID, Cognito Client ID và AWS region để cấu hình biến môi trường cho frontend.
+### Bước 5: Kích hoạt CI/CD
+Hãy đảm bảo bạn đã đẩy toàn bộ mã nguồn của mình lên repository GitHub tương ứng. Ngay khi có sự kiện đẩy code (push event) lên nhánh cấu hình (`GITHUB_BRANCH`), AWS Amplify sẽ tự động kéo code mới nhất, build và deploy lên môi trường trực tiếp của bạn mà không cần chạy lại lệnh deploy CDK từ máy local.
 
 ## API Endpoints
 
