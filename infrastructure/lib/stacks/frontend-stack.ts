@@ -49,24 +49,22 @@ export class FrontendStack extends cdk.Stack {
           status: '200',
         },
       ],
-      buildSpec: `
-        version: 1
-        frontend:
-          phases:
-            preBuild:
-              commands:
-                - npm ci
-            build:
-              commands:
-                - npm run --workspace=frontend build
-          artifacts:
-            baseDirectory: frontend/dist
-            files:
-              - '**/*'
-          cache:
-            paths:
-              - node_modules/**/*
-      `.trim(),
+      buildSpec: `version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run --workspace=frontend build
+  artifacts:
+    baseDirectory: frontend/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*`,
     });
 
     // ─── AWS Amplify Branch ──────────────────────────────────────────
