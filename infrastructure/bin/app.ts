@@ -6,8 +6,7 @@ import { DatabaseStack } from '../lib/stacks/database-stack';
 import { AuthStack } from '../lib/stacks/auth-stack';
 import { ApiStack } from '../lib/stacks/api-stack';
 import { MonitoringStack } from '../lib/stacks/monitoring-stack';
-// NOTE: FrontendStack temporarily disabled — AWS account not yet verified for CloudFront
-// import { FrontendStack } from '../lib/stacks/frontend-stack';
+import { FrontendStack } from '../lib/stacks/frontend-stack';
 
 const app = new cdk.App();
 
@@ -84,17 +83,22 @@ const monitoringStack = new MonitoringStack(app, `${projectName}-Monitoring-${en
 
 monitoringStack.addDependency(apiStack);
 
-// NOTE: FrontendStack temporarily disabled — AWS account not yet verified for CloudFront
-// Once verified, uncomment the following block and re-run `npm run deploy`
-// const frontendStack = new FrontendStack(app, `${projectName}-Frontend-${environment}`, {
-//   env,
-//   projectName,
-//   environment,
-//   api: apiStack.api,
-//   userPool: authStack.userPool,
-//   userPoolClient: authStack.userPoolClient,
-//   tags: commonTags,
-// });
-// frontendStack.addDependency(apiStack);
-// frontendStack.addDependency(authStack);
+const githubRepoUrl = process.env.GITHUB_REPO_URL || 'https://github.com/hngluc/AWS-Project';
+const githubBranch = process.env.GITHUB_BRANCH || environment;
+const githubToken = process.env.GITHUB_TOKEN || '';
+
+const frontendStack = new FrontendStack(app, `${projectName}-Frontend-${environment}`, {
+  env,
+  projectName,
+  environment,
+  api: apiStack.api,
+  userPool: authStack.userPool,
+  userPoolClient: authStack.userPoolClient,
+  githubRepoUrl,
+  githubBranch,
+  githubToken,
+  tags: commonTags,
+});
+frontendStack.addDependency(apiStack);
+frontendStack.addDependency(authStack);
 app.synth();

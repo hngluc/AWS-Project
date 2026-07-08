@@ -1,12 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as amplify from 'aws-cdk-lib/aws-amplify';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { Construct } from 'constructs';
-import * as path from 'path';
 
 export interface FrontendStackProps extends cdk.StackProps {
   projectName: string;
@@ -14,80 +10,76 @@ export interface FrontendStackProps extends cdk.StackProps {
   api: apigateway.RestApi;
   userPool: cognito.UserPool;
   userPoolClient: cognito.UserPoolClient;
+  githubRepoUrl: string;
+  githubBranch: string;
+  githubToken: string;
 }
 
 export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
 
-    const { projectName, environment, api, userPool, userPoolClient } = props;
+    const {
+      projectName,
+      environment,
+      api,
+      userPool,
+      userPoolClient,
+      githubRepoUrl,
+      githubBranch,
+      githubToken,
+    } = props;
     const nameSuffix = `${projectName}-${environment}`.toLowerCase();
 
-    // ─── S3 Bucket: Frontend Hosting ────────────────────────────────
-    const websiteBucket = new s3.Bucket(this, 'FrontendBucket', {
-      bucketName: `${nameSuffix}-frontend-${this.account}`,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      removalPolicy: environment === 'production'
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: environment !== 'production',
-    });
-
-    // ─── CloudFront Distribution with OAC ───────────────────────────
-    const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
-      comment: `${projectName} ${environment} - Frontend App`,
-      defaultBehavior: {
-        origin: origins.S3BucketOrigin.withOriginAccessControl(websiteBucket),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-      },
-      // Since it's an SPA (React/Vite), redirect 403/404 to index.html
-      errorResponses: [
+    // ─── AWS Amplify App ─────────────────────────────────────────────
+    const amplifyApp = new amplify.CfnApp(this, 'FrontendAmplifyApp', {
+      name: `${nameSuffix}-frontend`,
+      repository: githubRepoUrl,
+      oauthToken: githubToken,
+      environmentVariables: [
+        { name: 'VITE_API_URL', value: api.url },
+        { name: 'VITE_USER_POOL_ID', value: userPool.userPoolId },
+        { name: 'VITE_CLIENT_ID', value: userPoolClient.userPoolClientId },
+        { name: 'VITE_AWS_REGION', value: this.region },
+      ],
+      customRules: [
         {
-          httpStatus: 403,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-          ttl: cdk.Duration.seconds(0),
-        },
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-          ttl: cdk.Duration.seconds(0),
+          source: '</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>',
+          target: '/index.html',
+          status: '200',
         },
       ],
-      defaultRootObject: 'index.html',
-      priceClass: cloudfront.PriceClass.PRICE_CLASS_200,
-      minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+      buildSpec: `
+        version: 1
+        frontend:
+          phases:
+            preBuild:
+              commands:
+                - npm ci
+            build:
+              commands:
+                - npm run --workspace=frontend build
+          artifacts:
+            baseDirectory: frontend/dist
+            files:
+              - '**/*'
+          cache:
+            paths:
+              - node_modules/**/*
+      `.trim(),
     });
 
-    // ─── Dynamic Config & Bucket Deployment ─────────────────────────
-    // Generates a config.js file containing backend environment variables
-    const configJsContent = `
-window.API_URL = "${api.url}";
-window.COGNITO_USER_POOL_ID = "${userPool.userPoolId}";
-window.COGNITO_CLIENT_ID = "${userPoolClient.userPoolClientId}";
-window.COGNITO_REGION = "${this.region}";
-    `.trim();
-
-    new s3deploy.BucketDeployment(this, 'DeployFrontendApp', {
-      sources: [
-        // Source 1: The built React app (assumes `npm run build` was run first)
-        s3deploy.Source.asset(path.join(__dirname, '..', '..', '..', 'frontend', 'dist')),
-        // Source 2: The dynamically generated config.js file
-        s3deploy.Source.data('config.js', configJsContent),
-      ],
-      destinationBucket: websiteBucket,
-      distribution: distribution, // Invalidate CloudFront cache on deploy
-      distributionPaths: ['/*'],
+    // ─── AWS Amplify Branch ──────────────────────────────────────────
+    new amplify.CfnBranch(this, 'FrontendAmplifyBranch', {
+      appId: amplifyApp.attrAppId,
+      branchName: githubBranch,
+      enableAutoBuild: true,
     });
 
     // ─── Outputs ────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'FrontendUrl', {
-      value: `https://${distribution.distributionDomainName}`,
-      description: 'Frontend Application URL',
+      value: `https://${githubBranch}.${amplifyApp.attrDefaultDomain}`,
+      description: 'Frontend Application Amplify Website URL',
       exportName: `${projectName}-${environment}-FrontendUrl`,
     });
   }
