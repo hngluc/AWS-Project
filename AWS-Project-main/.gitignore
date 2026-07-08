@@ -1,0 +1,43 @@
+node_modules/
+dist/
+cdk.out/
+# TS Compilation outputs (ignore only in backend and infrastructure)
+infrastructure/**/*.js
+infrastructure/**/*.d.ts
+infrastructure/**/*.js.map
+backend/**/*.js
+backend/**/*.d.ts
+backend/**/*.js.map
+!jest.config.js
+!esbuild.config.js
+
+# CDK
+cdk.context.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+users.json
+
+# IDE / AI Assistants
+.vscode/
+.idea/
+.claude/
+.codegraph/
+.cursor/
+.gemini/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.zip
+bundled/
+
+# Logs
+*.log
+npm-debug.log*

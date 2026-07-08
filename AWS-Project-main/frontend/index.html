@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO Meta -->
+    <title>SmartImage - Serverless Image Vault | AI-Powered Cloud Storage</title>
+    <meta name="description" content="SmartImage is an enterprise-grade, serverless image storage and processing platform powered by AWS. Upload, analyze with AI (Amazon Rekognition), and deliver images via CloudFront CDN." />
+    <meta name="theme-color" content="#0b0c10" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="SmartImage - Serverless Image Vault" />
+    <meta property="og:description" content="AI-powered image storage platform built on AWS Lambda, S3, DynamoDB, Rekognition, and CloudFront." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo.png" />
+
+    <!-- Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      if (typeof global === 'undefined') {
+        window.global = window;
+      }
+    </script>
+    <script src="/config.js"></script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
