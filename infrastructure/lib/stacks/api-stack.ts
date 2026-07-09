@@ -163,8 +163,9 @@ export class ApiStack extends cdk.Stack {
           afterBundling(inputDir: string, outputDir: string): string[] {
             // Force install linux-arm64 sharp inside the Lambda bundle
             // Delete .bin folder to prevent Windows EINVAL readlink error
+            // Use /tmp/npm-cache to avoid permission denied error in non-root Docker container on CI/CD
             return [
-              `npm install --prefix "${outputDir}" --force @img/sharp-linux-arm64 @img/sharp-libvips-linux-arm64 sharp`,
+              `npm install --cache /tmp/npm-cache --prefix "${outputDir}" --force @img/sharp-linux-arm64 @img/sharp-libvips-linux-arm64 sharp`,
               `rm -rf "${outputDir}/node_modules/.bin"`
             ];
           },
