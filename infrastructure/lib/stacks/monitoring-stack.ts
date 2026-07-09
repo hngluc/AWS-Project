@@ -27,12 +27,13 @@ export class MonitoringStack extends cdk.Stack {
       displayName: `${projectName} ${environment} Alarms`,
     });
 
-    // TODO: Add email subscription for notifications
-    // new sns.Subscription(this, 'AlarmEmailSub', {
-    //   topic: alarmTopic,
-    //   protocol: sns.SubscriptionProtocol.EMAIL,
-    //   endpoint: 'your-email@example.com',
-    // });
+    const alarmEmail = this.node.tryGetContext('alarmEmail') || 'admin@example.com';
+    
+    new sns.Subscription(this, 'AlarmEmailSub', {
+      topic: alarmTopic,
+      protocol: sns.SubscriptionProtocol.EMAIL,
+      endpoint: alarmEmail,
+    });
 
     const alarmAction = new cloudwatch_actions.SnsAction(alarmTopic);
 

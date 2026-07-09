@@ -5,6 +5,7 @@ import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -134,6 +135,11 @@ export class ApiStack extends cdk.Stack {
     }));
 
     // ─── Lambda: Image Processor ────────────────────────────────────
+    const imageProcessorDlq = new sqs.Queue(this, 'ImageProcessorDlq', {
+      queueName: `${projectName}-ImageProcessorDlq-${environment}`,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
     // Triggered by S3 events. Resizes images, extracts EXIF, invokes AI analyzer.
     this.imageProcessorFunction = new lambdaNodejs.NodejsFunction(this, 'ImageProcessorFunction', {
       functionName: `${projectName}-ImageProcessor-${environment}`,
@@ -144,6 +150,7 @@ export class ApiStack extends cdk.Stack {
       memorySize: 1536, // Sharp needs more memory for image processing
       timeout: cdk.Duration.seconds(120), // Large images may take time
       ephemeralStorageSize: cdk.Size.mebibytes(1024), // 1GB /tmp for image processing
+      deadLetterQueue: imageProcessorDlq,
       environment: {
         ...commonEnvVars,
         AI_ANALYZER_FUNCTION_NAME: '', // Will be set after AI analyzer is created
@@ -198,6 +205,11 @@ export class ApiStack extends cdk.Stack {
     );
 
     // ─── Lambda: AI Analyzer ────────────────────────────────────────
+    const aiAnalyzerDlq = new sqs.Queue(this, 'AiAnalyzerDlq', {
+      queueName: `${projectName}-AiAnalyzerDlq-${environment}`,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
     // Called asynchronously by Image Processor. Runs Rekognition analysis.
     this.aiAnalyzerFunction = new lambdaNodejs.NodejsFunction(this, 'AiAnalyzerFunction', {
       functionName: `${projectName}-AiAnalyzer-${environment}`,
@@ -238,6 +250,7 @@ export class ApiStack extends cdk.Stack {
       startingPosition: lambda.StartingPosition.TRIM_HORIZON,
       batchSize: 10,
       retryAttempts: 3,
+      onFailure: new lambdaEventSources.SqsDlq(aiAnalyzerDlq),
     }));
 
     // ─── API Gateway ────────────────────────────────────────────────

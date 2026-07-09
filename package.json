@@ -26,6 +26,9 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@colbymchenry/codegraph": "^0.9.9"
+    "@colbymchenry/codegraph": "^0.9.9",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11"
   }
 }

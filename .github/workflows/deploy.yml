@@ -1,4 +1,4 @@
-name: AWS CDK Deploy (Production)
+name: AWS CDK Deploy Pipeline
 
 on:
   push:
@@ -6,31 +6,61 @@ on:
       - main
 
 jobs:
-  deploy:
-    name: Build and Deploy to Production
+  build_and_test:
+    name: Build and Test
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout mã nguồn từ GitHub
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Thiết lập môi trường Node.js 20 và bật cache npm để tăng tốc build
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      # Step 2.5: Thiết lập QEMU để giả lập container ARM64 trên máy ảo x86_64 của GitHub
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # Step 2.6: Thiết lập Docker Buildx để hỗ trợ build đa nền tảng (multi-platform)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 3: Đăng nhập vào tài khoản AWS bằng GitHub Secrets
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Build Project
+        run: npm run build
+
+  deploy_staging:
+    name: Deploy to Staging
+    needs: build_and_test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      # TODO: Change to OIDC authentication in the future
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -38,18 +68,55 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-1
 
-      # Step 4: Cài đặt các thư viện phụ thuộc (node_modules)
+      - name: Deploy CDK Stacks (Staging)
+        run: npm run --workspace=infrastructure deploy:staging -- --require-approval never
+        env:
+          GITHUB_TOKEN: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
+          GITHUB_BRANCH: main
+          GITHUB_REPO_URL: https://github.com/${{ github.repository }}
+          DOCKER_BUILDKIT: 1
+
+  deploy_production:
+    name: Deploy to Production
+    needs: deploy_staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Install Dependencies
         run: npm ci
 
-      # Step 5: Biên dịch toàn bộ workspaces (Backend Lambdas & Frontend)
       - name: Build Project
         run: npm run build
 
-      # Step 6: Deploy lên AWS Production thông qua CDK
-      # Tự động nạp biến cấu hình Repo và Token từ Secrets để liên kết Amplify
-      - name: Deploy CDK Stacks
-        run: npm run --workspace=infrastructure deploy:production
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
+      - name: CDK Diff (Production)
+        run: npm run --workspace=infrastructure cdk -- diff -c environment=production
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - name: Deploy CDK Stacks (Production)
+        run: npm run --workspace=infrastructure deploy:production -- --require-approval never
         env:
           GITHUB_TOKEN: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
           GITHUB_BRANCH: main
