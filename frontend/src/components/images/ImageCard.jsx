@@ -172,6 +172,7 @@ export const ImageCard = ({ image, onClick, selected = false, onSelect = null, a
               <img
                 src={thumbnailUrl}
                 alt={originalFilename}
+                crossOrigin="anonymous"
                 loading="lazy"
                 onLoad={() => setImageLoaded(true)}
                 className={imageLoaded ? 'image-loaded' : ''}

@@ -152,6 +152,7 @@ export const ImageDetail = ({ image, onClose, onEdit, onShaderLab, isGuest = fal
         <img
           src={resizedUrl}
           alt={originalFilename}
+          crossOrigin="anonymous"
           style={{ width: '100%', height: '100%', objectFit: 'contain', maxHeight: '500px' }}
         />
 
