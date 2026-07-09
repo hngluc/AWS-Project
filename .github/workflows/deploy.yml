@@ -22,6 +22,10 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      # Step 2.5: Thiết lập QEMU để giả lập container ARM64 trên máy ảo x86_64 của GitHub
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       # Step 3: Đăng nhập vào tài khoản AWS bằng GitHub Secrets
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
