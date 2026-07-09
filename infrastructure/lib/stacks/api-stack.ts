@@ -85,7 +85,7 @@ export class ApiStack extends cdk.Stack {
         target: 'es2022',
         // Exclude AWS SDK v3 — already available in Lambda runtime
         externalModules: ['@aws-sdk/*'],
-        forceDockerBundling: true,
+        forceDockerBundling: false,
       },
       logRetention: logs.RetentionDays.TWO_WEEKS,
     });
@@ -110,7 +110,7 @@ export class ApiStack extends cdk.Stack {
         sourceMap: true,
         target: 'es2022',
         externalModules: ['@aws-sdk/*'],
-        forceDockerBundling: true,
+        forceDockerBundling: false,
       },
       logRetention: logs.RetentionDays.ONE_MONTH,
     });
@@ -162,15 +162,15 @@ export class ApiStack extends cdk.Stack {
           beforeInstall(inputDir: string, outputDir: string): string[] { return []; },
           afterBundling(inputDir: string, outputDir: string): string[] {
             // Force install linux-arm64 sharp inside the Lambda bundle
-            // Delete .bin folder to prevent Windows EINVAL readlink error
+            // Delete .bin folder to prevent Windows EINVAL readlink error (using cross-platform Node script)
             // Use /tmp/npm-cache to avoid permission denied error in non-root Docker container on CI/CD
             return [
               `npm install --cache /tmp/npm-cache --prefix "${outputDir}" --force @img/sharp-linux-arm64 @img/sharp-libvips-linux-arm64 sharp`,
-              `rm -rf "${outputDir}/node_modules/.bin"`
+              `node -e "const fs = require('fs'); fs.rmSync('${outputDir}/node_modules/.bin', { recursive: true, force: true });"`
             ];
           },
         },
-        forceDockerBundling: true,
+        forceDockerBundling: false,
       },
       logRetention: logs.RetentionDays.ONE_MONTH,
     });
@@ -213,7 +213,7 @@ export class ApiStack extends cdk.Stack {
         sourceMap: true,
         target: 'es2022',
         externalModules: ['@aws-sdk/*'],
-        forceDockerBundling: true,
+        forceDockerBundling: false,
       },
       logRetention: logs.RetentionDays.ONE_MONTH,
     });
