@@ -50,7 +50,6 @@ const PHONE_REGEX = /^[+]?[0-9 ()-]{8,20}$/;
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-  'Access-Control-Allow-Credentials': 'true',
   'X-Content-Type-Options': 'nosniff',
 };
 

@@ -289,7 +289,7 @@ export class ApiStack extends cdk.Stack {
 
       // CORS configuration
       defaultCorsPreflightOptions: {
-        allowOrigins: allowedOrigins,
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: [
           'Content-Type',
@@ -298,7 +298,7 @@ export class ApiStack extends cdk.Stack {
           'X-Api-Key',
           'X-Amz-Security-Token',
         ],
-        allowCredentials: true,
+        allowCredentials: false,
         maxAge: cdk.Duration.hours(1),
       },
 

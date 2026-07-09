@@ -25,7 +25,6 @@ export class ApiResponse {
     'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-    'Access-Control-Allow-Credentials': 'true',
     // Security headers
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',

@@ -36,7 +36,6 @@ const IMAGE_URL_EXPIRY = 3600; // 1 hour
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-  'Access-Control-Allow-Credentials': 'true',
   'X-Content-Type-Options': 'nosniff',
 };
 

@@ -53,7 +53,6 @@ const EXTENSION_MAP: Record<string, string> = {
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
-  'Access-Control-Allow-Credentials': 'true',
   'X-Content-Type-Options': 'nosniff',
 };
 
