@@ -201,31 +201,39 @@ export async function handleListPublicImages(
   }
 
   const docClient = await getDocClient();
-  const result = await docClient.send(new ScanCommand({
-    TableName: IMAGE_TABLE,
-    FilterExpression: '#visibility = :public AND moderationStatus = :safe AND #status = :completed',
-    ExpressionAttributeNames: {
-      '#visibility': 'visibility',
-      '#status': 'status',
-    },
-    ExpressionAttributeValues: {
-      ':public': 'PUBLIC',
-      ':safe': 'SAFE',
-      ':completed': 'COMPLETED',
-    },
-    ProjectionExpression: [
-      'imageId', 'userId', 'originalFilename', 'thumbnailKey', 'resizedKey',
-      'mimeType', 'fileSize', 'dimensions', 'exifData', 'aiTags',
-      'moderationStatus', '#status', '#visibility', 'createdAt', 'updatedAt',
-    ].join(', '),
-    Limit: limit,
-    ExclusiveStartKey: exclusiveStartKey,
-  }));
+  const publicItems: Record<string, any>[] = [];
+  let lastEvaluatedKey = exclusiveStartKey;
 
-  const images = await Promise.all((result.Items || []).map(toImageResponse));
+  do {
+    const result = await docClient.send(new ScanCommand({
+      TableName: IMAGE_TABLE,
+      FilterExpression: '#visibility = :public AND moderationStatus = :safe AND #status = :completed',
+      ExpressionAttributeNames: {
+        '#visibility': 'visibility',
+        '#status': 'status',
+      },
+      ExpressionAttributeValues: {
+        ':public': 'PUBLIC',
+        ':safe': 'SAFE',
+        ':completed': 'COMPLETED',
+      },
+      ProjectionExpression: [
+        'imageId', 'userId', 'originalFilename', 'thumbnailKey', 'resizedKey',
+        'mimeType', 'fileSize', 'dimensions', 'exifData', 'aiTags',
+        'moderationStatus', '#status', '#visibility', 'createdAt', 'updatedAt',
+      ].join(', '),
+      Limit: limit,
+      ExclusiveStartKey: lastEvaluatedKey,
+    }));
+
+    publicItems.push(...(result.Items || []));
+    lastEvaluatedKey = result.LastEvaluatedKey;
+  } while (publicItems.length < limit && lastEvaluatedKey);
+
+  const images = await Promise.all(publicItems.slice(0, limit).map(toImageResponse));
   let nextCursor: string | null = null;
-  if (result.LastEvaluatedKey) {
-    nextCursor = Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64');
+  if (lastEvaluatedKey) {
+    nextCursor = Buffer.from(JSON.stringify(lastEvaluatedKey)).toString('base64');
   }
 
   return jsonResponse(200, {

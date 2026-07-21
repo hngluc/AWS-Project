@@ -47,8 +47,8 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context): Pro
     // Unmarshall DynamoDB image to normal JS object
     const newImage = unmarshall(record.dynamodb.NewImage as any);
 
-    // Only process images that have just transitioned to PROCESSING status
-    if (newImage.status !== 'PROCESSING') {
+    // Only process images that have just transitioned to ANALYZING status
+    if (newImage.status !== 'ANALYZING') {
       continue;
     }
 

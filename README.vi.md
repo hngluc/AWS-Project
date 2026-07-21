@@ -25,7 +25,7 @@ Nền tảng cho phép người dùng upload ảnh trực tiếp lên S3, tự �
 ## Kiến Trúc
 
 ```mermaid
-flowchart LR
+flowchart TD
   User["User"] --> FE["React Frontend"]
   FE --> Cognito["Amazon Cognito"]
   FE --> API["API Gateway"]
@@ -36,11 +36,19 @@ flowchart LR
   RawS3 --> Processor["Image Processor Lambda"]
   Processor --> ProcessedS3["Processed S3 Bucket"]
   Processor --> DDB
-  DDB --> Analyzer["AI Analyzer Lambda"]
+  Processor -.-> DLQ_IP["SQS DLQ (Image Processor)"]
+  
+  DDB --> DDBStream["DynamoDB Stream"]
+  DDBStream --> Analyzer["AI Analyzer Lambda"]
+  DDBStream -.-> DLQ_AI["SQS DLQ (AI Analyzer)"]
   Analyzer --> Rekognition["Amazon Rekognition"]
   Analyzer --> DDB
+  
   FE --> CloudFront["CloudFront CDN"]
   CloudFront --> ProcessedS3
+
+  CW["CloudWatch Alarms"] --> SNS["SNS Topic"]
+  SNS --> Email["Operator Email"]
 ```
 
 ## Cấu Trúc Dự Án
@@ -56,21 +64,24 @@ smart-image-platform/
 ├── frontend/              # React + Vite single page app
 ├── infrastructure/        # AWS CDK stacks
 │   ├── bin/app.ts         # Điểm vào CDK app
-│   └── lib/stacks/        # Auth, storage, database, API, monitoring stacks
+│   ├── lib/stacks/        # Auth, storage, database, API, monitoring stacks
+│   └── test/              # Bộ unit/integration/snapshot test cho CDK Stack
 ├── package.json           # npm workspaces root
 └── tsconfig.base.json     # TypeScript config dùng chung
 ```
 
 ## AWS Services
 
-- Amazon S3 để lưu ảnh gốc và ảnh đã xử lý.
-- Amazon CloudFront để phân phối ảnh qua CDN.
-- Amazon API Gateway cho REST API.
-- AWS Lambda cho API, xử lý ảnh, phân tích AI và authorizer.
-- Amazon DynamoDB cho metadata ảnh, quota, tag search và moderation state.
-- Amazon Rekognition cho label và moderation label.
-- Amazon Cognito cho xác thực.
-- Amazon CloudWatch và X-Ray cho log, metric, tracing, dashboard và alarm.
+- **Amazon S3** để lưu ảnh gốc và ảnh đã xử lý.
+- **Amazon CloudFront** để phân phối ảnh qua CDN.
+- **Amazon API Gateway** cho REST API.
+- **AWS Lambda** cho API, xử lý ảnh, phân tích AI và authorizer (chạy trên môi trường ARM64 chip Graviton2 tiết kiệm chi phí).
+- **Amazon DynamoDB** cho metadata ảnh, quota, tag search và moderation state (kèm cấu hình Point-In-Time Recovery PITR tự động sao lưu).
+- **Amazon Rekognition** cho label và moderation label.
+- **Amazon Cognito** cho xác thực.
+- **Amazon SQS** làm Hàng đợi thư rác (Dead Letter Queue) đón lỗi từ các luồng bất đồng bộ.
+- **Amazon SNS** làm kênh chuyển tiếp cảnh báo lỗi từ CloudWatch Alarm đến Email quản trị viên.
+- **Amazon CloudWatch** và **X-Ray** cho log, metric, tracing, dashboard và alarm.
 
 ## Yêu Cầu
 
@@ -123,7 +134,7 @@ Build toàn bộ workspaces:
 npm run build
 ```
 
-Chạy test nếu workspace có test:
+Chạy test (sử dụng Jest + ts-jest để kiểm thử các stack CDK hạ tầng lẫn mã nguồn Lambda backend):
 
 ```bash
 npm test
@@ -184,8 +195,12 @@ npm run build
 
 Sau khi chạy lệnh deploy thành công, CDK sẽ khởi tạo toàn bộ hạ tầng backend và liên kết AWS Amplify với repository GitHub của bạn.
 
-### Bước 5: Kích hoạt CI/CD
-Hãy đảm bảo bạn đã đẩy toàn bộ mã nguồn của mình lên repository GitHub tương ứng. Ngay khi có sự kiện đẩy code (push event) lên nhánh cấu hình (`GITHUB_BRANCH`), AWS Amplify sẽ tự động kéo code mới nhất, build và deploy lên môi trường trực tiếp của bạn mà không cần chạy lại lệnh deploy CDK từ máy local.
+### Bước 5: Đường ống CI/CD Tự động
+Hãy đảm bảo bạn đã đẩy toàn bộ mã nguồn của mình lên repository GitHub tương ứng. Khi bạn đẩy code (push event) lên nhánh `main`, hệ thống GitHub Actions sẽ tự động kích hoạt đường ống CI/CD:
+1. **Job Build và Test**: Thực hiện cài đặt, build và chạy toàn bộ unit/integration test thông qua Jest.
+2. **Job Deploy Staging**: Tự động deploy cấu hình hạ tầng staging lên AWS nếu bước kiểm thử thành công.
+3. **Job Deploy Production**: Chạy lệnh đối chiếu cấu hình `cdk diff` để ghi log các thay đổi hạ tầng, sau đó triển khai hạ tầng Production (có chế độ yêu cầu phê duyệt bảo vệ môi trường nếu được thiết lập trên GitHub).
+4. **AWS Amplify Trigger**: Amplify phát hiện thay đổi và tự động cập nhật Frontend mà không cần deploy thủ công từ máy local.
 
 ## API Endpoints
 

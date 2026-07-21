@@ -1,6 +1,6 @@
 import { authService } from './auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || window.API_URL || '';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || window.API_URL || '').replace(/\/$/, '');
 
 async function request(path, options = {}) {
   const session = await authService.getCurrentUser();

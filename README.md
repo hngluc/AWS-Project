@@ -25,7 +25,7 @@ The platform lets users upload images directly to S3, process thumbnails and res
 ## Architecture
 
 ```mermaid
-flowchart LR
+flowchart TD
   User["User"] --> FE["React Frontend"]
   FE --> Cognito["Amazon Cognito"]
   FE --> API["API Gateway"]
@@ -36,11 +36,19 @@ flowchart LR
   RawS3 --> Processor["Image Processor Lambda"]
   Processor --> ProcessedS3["Processed S3 Bucket"]
   Processor --> DDB
-  DDB --> Analyzer["AI Analyzer Lambda"]
+  Processor -.-> DLQ_IP["SQS DLQ (Image Processor)"]
+  
+  DDB --> DDBStream["DynamoDB Stream"]
+  DDBStream --> Analyzer["AI Analyzer Lambda"]
+  DDBStream -.-> DLQ_AI["SQS DLQ (AI Analyzer)"]
   Analyzer --> Rekognition["Amazon Rekognition"]
   Analyzer --> DDB
+  
   FE --> CloudFront["CloudFront CDN"]
   CloudFront --> ProcessedS3
+
+  CW["CloudWatch Alarms"] --> SNS["SNS Topic"]
+  SNS --> Email["Operator Email"]
 ```
 
 ## Project Structure
@@ -56,21 +64,24 @@ smart-image-platform/
 ├── frontend/              # React + Vite single page app
 ├── infrastructure/        # AWS CDK stacks
 │   ├── bin/app.ts         # CDK app entry point
-│   └── lib/stacks/        # Auth, storage, database, API, monitoring stacks
+│   ├── lib/stacks/        # Auth, storage, database, API, monitoring stacks
+│   └── test/              # CDK Infrastructure integration tests
 ├── package.json           # npm workspaces root
 └── tsconfig.base.json     # Shared TypeScript config
 ```
 
 ## AWS Services
 
-- Amazon S3 for raw and processed image storage.
-- Amazon CloudFront for CDN delivery.
-- Amazon API Gateway for the REST API.
-- AWS Lambda for API, processing, analysis, and authorization logic.
-- Amazon DynamoDB for image metadata, quotas, tag search, and moderation state.
-- Amazon Rekognition for image labels and moderation labels.
-- Amazon Cognito for authentication.
-- Amazon CloudWatch and X-Ray for logs, metrics, tracing, dashboards, and alarms.
+- **Amazon S3** for raw and processed image storage.
+- **Amazon CloudFront** for CDN delivery.
+- **Amazon API Gateway** for the REST API.
+- **AWS Lambda** for API, processing, analysis, and authorization logic (powered by ARM64 Graviton2).
+- **Amazon DynamoDB** for image metadata, quotas, tag search, and moderation state (with Point-In-Time Recovery PITR enabled).
+- **Amazon Rekognition** for image labels and moderation labels.
+- **Amazon Cognito** for authentication.
+- **Amazon SQS** for Dead Letter Queues (DLQ) to capture asynchronous Lambda execution failures.
+- **Amazon SNS** for routing CloudWatch alarms to the operator's email.
+- **Amazon CloudWatch** and **X-Ray** for logs, metrics, tracing, dashboards, and alarms.
 
 ## Prerequisites
 
@@ -123,7 +134,7 @@ Build all workspaces:
 npm run build
 ```
 
-Run available tests:
+Run tests (uses Jest + ts-jest to run Lambda unit tests and CDK infrastructure integration/snapshot tests across all workspaces):
 
 ```bash
 npm test
@@ -184,8 +195,12 @@ npm run build
 
 After successful deployment, CDK will provision all backend services and link AWS Amplify to your GitHub repository.
 
-### Step 5: Trigger CI/CD
-Make sure you have pushed all your code changes to your GitHub repository. As soon as a push event occurs on the configured branch (`GITHUB_BRANCH`), AWS Amplify will automatically pull, build, and deploy the new frontend version without requiring any manual deployment from your local machine.
+### Step 5: CI/CD Pipeline
+Make sure you have pushed all your code changes to your GitHub repository. When you push to the `main` branch, the GitHub Actions CI/CD pipeline triggers:
+1. **Build and Test Job**: Performs linting, builds the project, and runs the entire Jest test suite.
+2. **Deploy to Staging Job**: Deploys the staging CDK stacks if the tests pass.
+3. **Deploy to Production Job**: Runs `cdk diff` to audit infrastructure changes, then deploys the production CDK stacks (with approval environment protection if configured in GitHub).
+4. **AWS Amplify Trigger**: Amplify automatically pulls and deploys the new frontend version when it detects a commit on the branch.
 
 ## API Endpoints
 
